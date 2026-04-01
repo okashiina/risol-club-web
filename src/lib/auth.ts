@@ -6,16 +6,30 @@ import { redirect } from "next/navigation";
 
 const SESSION_COOKIE = "risol-club-session";
 
+function readSellerEnv(name: string, fallback: string) {
+  const value = process.env[name]?.trim();
+
+  if (value) {
+    return value;
+  }
+
+  if (process.env.VERCEL_ENV) {
+    throw new Error(`${name} must be configured on Vercel deployments.`);
+  }
+
+  return fallback;
+}
+
 function getSecret() {
-  return process.env.SELLER_SESSION_SECRET ?? "risol-club-dev-secret";
+  return readSellerEnv("SELLER_SESSION_SECRET", "risol-club-dev-secret");
 }
 
 function getSellerEmail() {
-  return process.env.SELLER_EMAIL ?? "owner@risolclub.local";
+  return readSellerEnv("SELLER_EMAIL", "owner@risolclub.local");
 }
 
 function getSellerPassword() {
-  return process.env.SELLER_PASSWORD ?? "risolclub123";
+  return readSellerEnv("SELLER_PASSWORD", "risolclub123");
 }
 
 function sign(email: string) {

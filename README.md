@@ -38,6 +38,12 @@ Install dependencies:
 npm install
 ```
 
+Optional: copy environment variables first.
+
+```bash
+cp .env.example .env.local
+```
+
 Run the app in development:
 
 ```bash
@@ -78,17 +84,59 @@ SELLER_PASSWORD=your-password
 SELLER_SESSION_SECRET=replace-this-in-production
 ```
 
-## How Data Is Stored Right Now
+On Vercel deployments, those environment variables should always be set so the app never falls back to development credentials.
 
-This project currently uses a local JSON store at `data/store.json`.
+## Data Storage Modes
 
-That means:
+This app now supports two storage modes:
 
-- app data is persisted locally on disk
-- uploaded payment proofs are currently stored as `data URL` base64 strings
-- previews work nicely in the UI, but this is not yet an external file storage setup like S3, Cloudinary, or Vercel Blob
+- local development fallback using `data/store.json`
+- production-ready persistence using PostgreSQL via `DATABASE_URL` (ideal for Neon)
+
+If `DATABASE_URL` is present:
+
+- the app persists the full `StoreData` payload inside PostgreSQL as `jsonb`
+- this is the recommended setup for Vercel deployments
+- the database is bootstrapped automatically on first use
+
+If `DATABASE_URL` is not present:
+
+- the app falls back to the local JSON file at `data/store.json`
+- this is fine for local development, but not reliable for Vercel production usage
+
+Payment proofs are still stored as embedded `data URL` strings inside the store payload for now, so previews work, but long-term object storage is still the better upgrade.
 
 If you want to productionize uploads later, the next good step is moving payment proof files to object storage and keeping only references in the store.
+
+## Database Setup For Neon
+
+Create a Neon Postgres database, then set:
+
+```bash
+DATABASE_URL=postgres://USER:PASSWORD@HOST/DATABASE?sslmode=require
+```
+
+Useful commands:
+
+```bash
+npm run db:push
+npm run db:studio
+```
+
+The current implementation uses Drizzle ORM with a lightweight JSONB-backed state table so the existing app can move to persistent storage safely without rewriting all features first.
+
+## Vercel Checklist
+
+For this repository, make sure the Vercel project is tracking the `master` branch for production if that is your repo default branch.
+
+Set these environment variables in Vercel:
+
+```bash
+DATABASE_URL=postgres://USER:PASSWORD@HOST/DATABASE?sslmode=require
+SELLER_EMAIL=owner@example.com
+SELLER_PASSWORD=replace-with-a-strong-password
+SELLER_SESSION_SECRET=replace-with-a-strong-random-secret
+```
 
 ## Delivery Flow
 
@@ -140,6 +188,7 @@ Main areas:
 ## Future Nice-to-Haves
 
 - move payment proof uploads to real object storage
+- normalize the current JSONB app store into dedicated relational tables
 - configurable seller WhatsApp from admin settings UI
 - richer order notifications
 - delivery zone or mileage-based pricing

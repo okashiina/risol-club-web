@@ -2,16 +2,206 @@ import "server-only";
 
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { eq, sql as drizzleSql } from "drizzle-orm";
+import { getDb, hasDatabaseUrl } from "@/db/db";
+import { appState } from "@/db/schema";
 import { seedData } from "@/lib/seed-data";
 import { Ingredient, Order, OrderStatus, Product, Recipe, StoreData } from "@/lib/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
+const STORE_ROW_ID = "primary";
+const STORE_LOCK_KEY = 9_513_469;
 
 let writeQueue = Promise.resolve<StoreData | null>(null);
+let databaseReadyPromise: Promise<void> | null = null;
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function getBootstrapMode() {
+  const configured = process.env.STORE_DATABASE_BOOTSTRAP?.trim().toLowerCase();
+
+  if (configured === "file" || configured === "seed") {
+    return configured;
+  }
+
+  return process.env.NODE_ENV === "production" ? "seed" : "file";
+}
+
+async function readExistingLocalStoreOrNull() {
+  try {
+    const content = await readFile(STORE_FILE, "utf8");
+    return JSON.parse(content) as StoreData;
+  } catch {
+    return null;
+  }
+}
+
+async function resolveInitialDatabaseStore() {
+  if (getBootstrapMode() === "file") {
+    const localStore = await readExistingLocalStoreOrNull();
+
+    if (localStore) {
+      return localStore;
+    }
+  }
+
+  return deepClone(seedData);
+}
+
+async function ensureLocalStoreFile() {
+  await mkdir(DATA_DIR, { recursive: true });
+
+  try {
+    await readFile(STORE_FILE, "utf8");
+  } catch {
+    await writeFile(STORE_FILE, JSON.stringify(seedData, null, 2), "utf8");
+  }
+}
+
+async function readLocalStore() {
+  await ensureLocalStoreFile();
+  const content = await readFile(STORE_FILE, "utf8");
+  return JSON.parse(content) as StoreData;
+}
+
+async function ensureDatabaseStore() {
+  if (!hasDatabaseUrl()) {
+    return;
+  }
+
+  if (!databaseReadyPromise) {
+    databaseReadyPromise = (async () => {
+      const db = getDb();
+
+      if (!db) {
+        return;
+      }
+
+      await db.execute(drizzleSql`
+        create table if not exists app_state (
+          id text primary key,
+          payload jsonb not null,
+          created_at timestamptz not null default now(),
+          updated_at timestamptz not null default now()
+        )
+      `);
+
+      const existingRow = await db
+        .select({ id: appState.id })
+        .from(appState)
+        .where(eq(appState.id, STORE_ROW_ID))
+        .limit(1);
+
+      if (existingRow.length === 0) {
+        const initialStore = await resolveInitialDatabaseStore();
+
+        await db
+          .insert(appState)
+          .values({
+            id: STORE_ROW_ID,
+            payload: initialStore,
+          })
+          .onConflictDoNothing();
+      }
+    })();
+  }
+
+  await databaseReadyPromise;
+}
+
+async function readDatabaseStore() {
+  await ensureDatabaseStore();
+
+  const db = getDb();
+
+  if (!db) {
+    throw new Error("DATABASE_URL is configured, but the database client is unavailable.");
+  }
+
+  const rows = await db
+    .select({ payload: appState.payload })
+    .from(appState)
+    .where(eq(appState.id, STORE_ROW_ID))
+    .limit(1);
+
+  if (rows[0]?.payload) {
+    return rows[0].payload as StoreData;
+  }
+
+  const fallbackStore = await resolveInitialDatabaseStore();
+
+  await db
+    .insert(appState)
+    .values({
+      id: STORE_ROW_ID,
+      payload: fallbackStore,
+    })
+    .onConflictDoNothing();
+
+  return fallbackStore;
+}
+
+async function writeLocalStore(
+  updater: (current: StoreData) => StoreData | Promise<StoreData>,
+) {
+  const pendingWrite = writeQueue.then(async () => {
+    const current = await readLocalStore();
+    const next = await updater(deepClone(current));
+    await writeFile(STORE_FILE, JSON.stringify(next, null, 2), "utf8");
+    return next;
+  });
+
+  writeQueue = pendingWrite;
+  return pendingWrite;
+}
+
+async function writeDatabaseStore(
+  updater: (current: StoreData) => StoreData | Promise<StoreData>,
+) {
+  await ensureDatabaseStore();
+
+  const db = getDb();
+
+  if (!db) {
+    throw new Error("DATABASE_URL is configured, but the database client is unavailable.");
+  }
+
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      drizzleSql`select pg_advisory_xact_lock(${STORE_LOCK_KEY})`,
+    );
+
+    const rows = await tx
+      .select({ payload: appState.payload })
+      .from(appState)
+      .where(eq(appState.id, STORE_ROW_ID))
+      .limit(1);
+
+    const current =
+      (rows[0]?.payload as StoreData | undefined) ??
+      (await resolveInitialDatabaseStore());
+    const next = await updater(deepClone(current));
+
+    if (rows.length === 0) {
+      await tx.insert(appState).values({
+        id: STORE_ROW_ID,
+        payload: next,
+      });
+    } else {
+      await tx
+        .update(appState)
+        .set({
+          payload: next,
+          updatedAt: new Date(),
+        })
+        .where(eq(appState.id, STORE_ROW_ID));
+    }
+
+    return next;
+  });
 }
 
 export function makeId(prefix: string) {
@@ -22,33 +212,16 @@ export function nowIso() {
   return new Date().toISOString();
 }
 
-async function ensureStoreFile() {
-  await mkdir(DATA_DIR, { recursive: true });
-
-  try {
-    await readFile(STORE_FILE, "utf8");
-  } catch {
-    await writeFile(STORE_FILE, JSON.stringify(seedData, null, 2), "utf8");
-  }
-}
-
 export async function readStore() {
-  await ensureStoreFile();
-  const content = await readFile(STORE_FILE, "utf8");
-  return JSON.parse(content) as StoreData;
+  return hasDatabaseUrl() ? readDatabaseStore() : readLocalStore();
 }
 
 export async function writeStore(
   updater: (current: StoreData) => StoreData | Promise<StoreData>,
 ) {
-  writeQueue = writeQueue.then(async () => {
-    const current = await readStore();
-    const next = await updater(deepClone(current));
-    await writeFile(STORE_FILE, JSON.stringify(next, null, 2), "utf8");
-    return next;
-  });
-
-  return writeQueue;
+  return hasDatabaseUrl()
+    ? writeDatabaseStore(updater)
+    : writeLocalStore(updater);
 }
 
 export function getProductBySlug(store: StoreData, slug: string) {
