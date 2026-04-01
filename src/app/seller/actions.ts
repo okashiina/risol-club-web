@@ -44,11 +44,32 @@ function revalidateSeller() {
   revalidatePath("/seller/reports");
 }
 
+function revalidateOrderArtifacts(orderCode: string) {
+  revalidatePath(`/order/${orderCode}`);
+  revalidatePath(`/api/order/${orderCode}`);
+}
+
 function makeOrderCode(orderCount: number) {
   const date = new Date();
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   return `RC-${day}${month}-${String(orderCount + 1).padStart(3, "0")}`;
+}
+
+async function fileToPaymentProofPayload(file: File | FormDataEntryValue | null) {
+  if (!(file instanceof File) || file.size <= 0) {
+    return undefined;
+  }
+
+  const mimeType = file.type || "application/octet-stream";
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  return {
+    fileName: file.name,
+    mimeType,
+    dataUrl: `data:${mimeType};base64,${buffer.toString("base64")}`,
+    uploadedAt: nowIso(),
+  };
 }
 
 function variantsFromFormData(formData: FormData, fallback: Product) {
@@ -144,6 +165,7 @@ export async function markNotificationsReadAction() {
 export async function updateOrderStatusAction(formData: FormData) {
   const orderId = textValue(formData, "orderId");
   const nextStatus = textValue(formData, "status") as OrderStatus;
+  let updatedCode = "";
 
   await writeStore((store) => {
     const order = store.orders.find((item) => item.id === orderId);
@@ -211,11 +233,15 @@ export async function updateOrderStatusAction(formData: FormData) {
 
     order.status = nextStatus;
     order.updatedAt = nowIso();
+    updatedCode = order.code;
 
     return store;
   });
 
   revalidateSeller();
+  if (updatedCode) {
+    revalidateOrderArtifacts(updatedCode);
+  }
 }
 
 export async function createManualOrderAction(formData: FormData) {
@@ -242,24 +268,8 @@ export async function createManualOrderAction(formData: FormData) {
     quantity: number;
   }>;
 
-  let paymentPayload:
-    | {
-        fileName: string;
-        mimeType: string;
-        dataUrl: string;
-        uploadedAt: string;
-      }
-    | undefined;
-
-  if (paymentProof instanceof File && paymentProof.size > 0) {
-    const buffer = Buffer.from(await paymentProof.arrayBuffer());
-    paymentPayload = {
-      fileName: paymentProof.name,
-      mimeType: paymentProof.type || "application/octet-stream",
-      dataUrl: `data:${paymentProof.type || "application/octet-stream"};base64,${buffer.toString("base64")}`,
-      uploadedAt: nowIso(),
-    };
-  }
+  const paymentPayload = await fileToPaymentProofPayload(paymentProof);
+  let createdCode = "";
 
   await writeStore((store) => {
     const items = parsedItems
@@ -328,6 +338,7 @@ export async function createManualOrderAction(formData: FormData) {
     };
 
     store.orders.unshift(order);
+    createdCode = code;
 
     if (isSalesStatus(status)) {
       for (const item of items) {
@@ -363,11 +374,103 @@ export async function createManualOrderAction(formData: FormData) {
   });
 
   revalidateSeller();
+  if (createdCode) {
+    revalidateOrderArtifacts(createdCode);
+  }
+}
+
+export async function editOrderAction(formData: FormData) {
+  const orderId = textValue(formData, "orderId");
+  const paymentProof = formData.get("paymentProof");
+  const paymentPayload = await fileToPaymentProofPayload(paymentProof);
+  let updatedCode = "";
+
+  await writeStore((store) => {
+    const order = store.orders.find((item) => item.id === orderId);
+
+    if (!order) {
+      return store;
+    }
+
+    const now = nowIso();
+    let subtotalDelta = 0;
+    const allowQtyIncrease = !["completed", "cancelled"].includes(order.status);
+
+    for (const [key, value] of formData.entries()) {
+      if (!key.startsWith("increase:")) {
+        continue;
+      }
+
+      const quantityToAdd = Number(String(value ?? "0"));
+      if (!Number.isFinite(quantityToAdd) || quantityToAdd <= 0 || !allowQtyIncrease) {
+        continue;
+      }
+
+      const [, productId, rawVariantType] = key.split(":");
+      const variantType = rawVariantType === "legacy" ? undefined : rawVariantType;
+      const item = order.items.find(
+        (entry) =>
+          entry.productId === productId &&
+          (entry.variantType ?? "legacy") === (variantType ?? "legacy"),
+      );
+
+      if (!item) {
+        continue;
+      }
+
+      const product = store.products.find((entry) => entry.id === item.productId);
+      item.quantity += quantityToAdd;
+      item.pieceCount = product ? getPieceCount(product, item.quantity) : item.pieceCount + quantityToAdd * DEFAULT_PACK_SIZE;
+      item.costSnapshot = item.costSnapshot || calculateProductCost(store, item.productId);
+      subtotalDelta += item.unitPrice * quantityToAdd;
+
+      if (isSalesStatus(order.status)) {
+        const stock = store.productStocks.find((entry) => entry.productId === item.productId);
+
+        if (stock) {
+          stock.stock -= quantityToAdd;
+          stock.updatedAt = now;
+        }
+
+        store.inventoryMovements.unshift({
+          id: makeId("move"),
+          itemType: "product",
+          itemId: item.productId,
+          type: "sale",
+          quantity: -quantityToAdd,
+          note: `Order ${order.code} qty increased by seller`,
+          createdAt: now,
+        });
+      }
+    }
+
+    if (subtotalDelta > 0) {
+      order.subtotal += subtotalDelta;
+      order.total += subtotalDelta;
+    }
+
+    if (paymentPayload) {
+      order.paymentProof = paymentPayload;
+    }
+
+    if (subtotalDelta > 0 || paymentPayload) {
+      order.updatedAt = now;
+      updatedCode = order.code;
+    }
+
+    return store;
+  });
+
+  revalidateSeller();
+  if (updatedCode) {
+    revalidateOrderArtifacts(updatedCode);
+  }
 }
 
 export async function deleteOrderAction(formData: FormData) {
   const orderId = textValue(formData, "orderId");
   const confirmation = textValue(formData, "confirmation");
+  let deletedCode = "";
 
   if (confirmation !== "DELETE") {
     return;
@@ -400,11 +503,15 @@ export async function deleteOrderAction(formData: FormData) {
       }
     }
 
+    deletedCode = order.code;
     store.orders = store.orders.filter((item) => item.id !== orderId);
     return store;
   });
 
   revalidateSeller();
+  if (deletedCode) {
+    revalidateOrderArtifacts(deletedCode);
+  }
 }
 
 export async function deleteProductImageAction(formData: FormData) {

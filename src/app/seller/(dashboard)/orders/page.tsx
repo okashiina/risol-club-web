@@ -3,6 +3,7 @@ import { DangerSubmitButton } from "@/components/danger-submit-button";
 import { SellerManualOrderForm } from "@/components/seller-manual-order-form";
 import {
   deleteOrderAction,
+  editOrderAction,
   updateOrderStatusAction,
 } from "@/app/seller/actions";
 import { statusLabel } from "@/lib/data-store";
@@ -210,6 +211,79 @@ export default async function SellerOrdersPage() {
                 </div>
 
                 <div className="grid gap-4">
+                  <form action={editOrderAction} className="rounded-[1.5rem] bg-white p-4">
+                    <input type="hidden" name="orderId" value={order.id} />
+                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+                      Edit order
+                    </p>
+                    <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
+                      Seller hanya bisa menambah qty dari item yang sudah ada, lalu upload
+                      atau ganti bukti transfer kalau customer baru kirim belakangan.
+                    </p>
+
+                    <div className="mt-4 grid gap-3">
+                      {order.items.map((item) => {
+                        const itemKey = `${item.productId}:${item.variantType ?? "legacy"}`;
+                        const disableIncrease = ["completed", "cancelled"].includes(order.status);
+
+                        return (
+                          <div
+                            key={`${order.id}-${itemKey}`}
+                            className="rounded-[1.25rem] border border-[color:var(--paper-300)] bg-[color:var(--paper-100)] p-3"
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div>
+                                <p className="text-sm font-bold text-[color:var(--brand-900)]">
+                                  {item.productName}
+                                </p>
+                                <p className="text-xs text-[color:var(--ink-700)]">
+                                  {item.variantLabel} • sekarang {item.quantity} qty • {item.pieceCount} pcs
+                                </p>
+                              </div>
+                              <div className="w-24">
+                                <label className="label text-xs" htmlFor={`increase-${order.id}-${itemKey}`}>
+                                  Tambah qty
+                                </label>
+                                <input
+                                  id={`increase-${order.id}-${itemKey}`}
+                                  name={`increase:${item.productId}:${item.variantType ?? "legacy"}`}
+                                  type="number"
+                                  min={0}
+                                  defaultValue={0}
+                                  disabled={disableIncrease}
+                                  className="field disabled:cursor-not-allowed disabled:opacity-60"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-4">
+                      <label className="label" htmlFor={`proof-${order.id}`}>
+                        {order.paymentProof ? "Ganti / upload ulang bukti transfer" : "Tambah bukti transfer"}
+                      </label>
+                      <input
+                        id={`proof-${order.id}`}
+                        name="paymentProof"
+                        type="file"
+                        accept="image/*,application/pdf"
+                        className="field file:mr-4 file:rounded-full file:border-0 file:bg-[color:var(--brand-900)] file:px-4 file:py-2 file:font-semibold file:text-white"
+                      />
+                    </div>
+
+                    {["completed", "cancelled"].includes(order.status) ? (
+                      <p className="mt-3 text-xs text-[color:var(--ink-700)]">
+                        Qty tidak bisa ditambah lagi karena order sudah {order.status === "completed" ? "completed" : "cancelled"}, tapi bukti transfer tetap boleh diperbarui bila perlu.
+                      </p>
+                    ) : null}
+
+                    <ActionButton className="mt-4 w-full rounded-full bg-[color:var(--brand-900)] px-4 py-3 font-bold text-white">
+                      Save order update
+                    </ActionButton>
+                  </form>
+
                   <form action={updateOrderStatusAction} className="rounded-[1.5rem] bg-white p-4">
                     <input type="hidden" name="orderId" value={order.id} />
                     <label className="label" htmlFor={`status-${order.id}`}>
