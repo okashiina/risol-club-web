@@ -432,7 +432,7 @@ export function CheckoutForm({
                                   <div className="text-sm text-[color:var(--ink-700)]">
                                     {quantity > 0 ? (
                                       <span>
-                                        {quantity} qty Â· {getPieceCount(product, quantity)} pcs
+                                        {quantity} qty - {getPieceCount(product, quantity)} pcs
                                       </span>
                                     ) : (
                                       <span>
@@ -631,7 +631,7 @@ export function CheckoutForm({
                         {item.productName}
                       </p>
                       <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                        {item.variantLabel} Â· {item.quantity} qty Â· {item.pieceCount} pcs
+                        {item.variantLabel} - {item.quantity} qty - {item.pieceCount} pcs
                       </p>
                     </div>
                     <p className="text-sm font-black text-[color:var(--brand-900)]">
