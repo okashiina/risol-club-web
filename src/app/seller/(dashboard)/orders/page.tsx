@@ -4,6 +4,7 @@ import { SellerManualOrderForm } from "@/components/seller-manual-order-form";
 import { SellerOrderActions } from "@/components/seller-order-actions";
 import { updateOrderStatusAction } from "@/app/seller/actions";
 import { statusLabel } from "@/lib/data-store";
+import { getOrderAlertConfigSnapshot } from "@/lib/email";
 import { getPaymentProofHref } from "@/lib/payment-proof";
 import { formatCurrency, formatDateTime } from "@/lib/reports";
 import { readSellerOrdersData } from "@/lib/store-projections";
@@ -44,6 +45,7 @@ function buildWhatsappHelperMessage(order: Awaited<ReturnType<typeof readSellerO
 
 export default async function SellerOrdersPage() {
   const { orders, products } = await readSellerOrdersData();
+  const emailAlertConfig = getOrderAlertConfigSnapshot();
 
   return (
     <div className="grid gap-6">
@@ -53,6 +55,64 @@ export default async function SellerOrdersPage() {
           Verifikasi pembayaran, tambah order manual dari WhatsApp, kirim kabar follow-up
           yang lebih hangat, dan hapus dummy order dengan warning permanen.
         </p>
+      </section>
+
+      <section className="surface-card rounded-[2rem] p-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-2xl">Email alert status</h2>
+              <span
+                className={`pill ${
+                  emailAlertConfig.isReady
+                    ? "bg-[#eef7f0] text-[#1f8f4e]"
+                    : "bg-[color:var(--paper-100)] text-[color:var(--brand-900)]"
+                }`}
+              >
+                {emailAlertConfig.isReady ? "Production-ready" : "Perlu dicek"}
+              </span>
+            </div>
+            <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
+              Biar nggak ketipu UI env Vercel yang suka nyembunyiin value, halaman ini nunjukkin
+              runtime config email alert yang benar-benar kebaca server.
+            </p>
+          </div>
+          <div className="grid gap-2 rounded-[1.5rem] bg-white px-5 py-4 text-sm text-[color:var(--ink-700)] sm:min-w-[320px]">
+            <p>
+              <span className="font-bold text-[color:var(--brand-900)]">Resend key:</span>{" "}
+              {emailAlertConfig.resendConfigured ? "terdeteksi" : "belum ada"}
+            </p>
+            <p>
+              <span className="font-bold text-[color:var(--brand-900)]">From:</span>{" "}
+              {emailAlertConfig.senderMasked}
+            </p>
+            <p>
+              <span className="font-bold text-[color:var(--brand-900)]">To:</span>{" "}
+              {emailAlertConfig.recipientMasked}
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white px-5 py-4 text-sm leading-7 text-[color:var(--ink-700)]">
+          {emailAlertConfig.usesSandboxSender ? (
+            <p>
+              Sender masih pakai sandbox `resend.dev`. Ini aman cuma untuk testing ke email akun
+              Resend sendiri. Kalau mau notif seller asli, isi `ORDER_ALERT_EMAIL_FROM` dengan
+              alamat dari domain verified, misalnya `orders@mail.risol-club.site`.
+            </p>
+          ) : emailAlertConfig.isReady ? (
+            <p>
+              Konfigurasi email alert sudah kelihatan siap dipakai. Tinggal bikin order test baru,
+              lalu cek inbox dan Resend logs kalau perlu.
+            </p>
+          ) : (
+            <p>
+              Ada bagian config yang belum kebaca penuh. Pastikan `RESEND_API_KEY`,
+              `ORDER_ALERT_EMAIL_FROM`, dan `ORDER_ALERT_EMAIL_TO` sudah terisi di environment
+              deployment yang kamu pakai.
+            </p>
+          )}
+        </div>
       </section>
 
       <SellerManualOrderForm products={products} />

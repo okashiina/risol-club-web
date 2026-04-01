@@ -12,7 +12,21 @@ function getOrderAlertRecipient() {
 }
 
 function getOrderAlertSender() {
-  return readEnv("ORDER_ALERT_EMAIL_FROM") || "Risol Club <onboarding@resend.dev>";
+  const raw = readEnv("ORDER_ALERT_EMAIL_FROM");
+
+  if (!raw) {
+    return "Risol Club <onboarding@resend.dev>";
+  }
+
+  if (raw.includes("<") && raw.includes(">")) {
+    return raw;
+  }
+
+  if (raw.includes("@")) {
+    return `Risol Club <${raw}>`;
+  }
+
+  return "Risol Club <onboarding@resend.dev>";
 }
 
 function getResendClient() {
@@ -23,6 +37,53 @@ function getResendClient() {
   }
 
   return new Resend(apiKey);
+}
+
+function extractEmailAddress(value: string) {
+  const match = value.match(/<([^>]+)>/);
+
+  if (match?.[1]) {
+    return match[1].trim();
+  }
+
+  return value.trim();
+}
+
+function maskEmail(email: string) {
+  const normalized = extractEmailAddress(email);
+  const [localPart, domain] = normalized.split("@");
+
+  if (!localPart || !domain) {
+    return "belum diisi";
+  }
+
+  const visibleLocal = localPart.length <= 2 ? localPart : `${localPart.slice(0, 2)}***`;
+  const domainParts = domain.split(".");
+  const mainDomain = domainParts[0] ?? "";
+  const tld = domainParts.slice(1).join(".");
+  const visibleDomain =
+    mainDomain.length <= 2 ? mainDomain : `${mainDomain.slice(0, 2)}***`;
+
+  return `${visibleLocal}@${visibleDomain}${tld ? `.${tld}` : ""}`;
+}
+
+export function getOrderAlertConfigSnapshot() {
+  const sender = getOrderAlertSender();
+  const recipient = getOrderAlertRecipient();
+  const resendConfigured = Boolean(readEnv("RESEND_API_KEY"));
+  const senderAddress = extractEmailAddress(sender);
+  const recipientAddress = extractEmailAddress(recipient);
+
+  return {
+    resendConfigured,
+    hasRecipient: Boolean(recipientAddress),
+    sender,
+    senderMasked: maskEmail(senderAddress),
+    recipientMasked: maskEmail(recipientAddress),
+    senderAddress,
+    usesSandboxSender: senderAddress.endsWith("@resend.dev"),
+    isReady: resendConfigured && Boolean(recipientAddress) && !senderAddress.endsWith("@resend.dev"),
+  };
 }
 
 function buildItemsMarkup(order: Order) {
@@ -135,6 +196,12 @@ export async function sendNewOrderSellerEmail(order: Order) {
   if (error) {
     throw new Error(error.message || "Failed to send seller email notification.");
   }
+
+  console.info("Seller order email sent", {
+    orderCode: order.code,
+    to: extractEmailAddress(to),
+    from: extractEmailAddress(from),
+  });
 
   return { sent: true as const };
 }
