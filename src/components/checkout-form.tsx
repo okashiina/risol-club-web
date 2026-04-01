@@ -2,7 +2,9 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Locale, Product } from "@/lib/types";
+import { ProductGallery } from "@/components/product-gallery";
+import { findCatalogBlueprintBySlug, getPieceCount } from "@/lib/catalog";
+import { Locale, Product, ProductVariantType } from "@/lib/types";
 
 type CheckoutFormProps = {
   locale: Locale;
@@ -15,6 +17,10 @@ type CheckoutFormProps = {
 };
 
 type CartState = Record<string, number>;
+
+function cartKey(productId: string, variantType: ProductVariantType) {
+  return `${productId}:${variantType}`;
+}
 
 export function CheckoutForm({
   locale,
@@ -34,19 +40,32 @@ export function CheckoutForm({
       return {};
     }
 
-    const product = products.find((item) => item.slug === initialProductSlug);
-    return product ? { [product.id]: 1 } : {};
+    const blueprint = findCatalogBlueprintBySlug(initialProductSlug);
+    const product = products.find(
+      (item) =>
+        item.slug === initialProductSlug ||
+        (blueprint ? item.slug === blueprint.canonicalSlug : false),
+    );
+    return product ? { [cartKey(product.id, "frozen")]: 1 } : {};
   });
 
   const selectedItems = useMemo(
     () =>
       products
-        .map((product) => ({
-          productId: product.id,
-          productName: locale === "en" ? product.nameEn : product.name,
-          quantity: cart[product.id] ?? 0,
-          unitPrice: product.price,
-        }))
+        .flatMap((product) =>
+          product.variants.map((variant) => ({
+            productId: product.id,
+            productName: locale === "en" ? product.nameEn : product.name,
+            variantType: variant.type,
+            variantLabel: variant.label,
+            quantity: cart[cartKey(product.id, variant.type)] ?? 0,
+            unitPrice: variant.price,
+            pieceCount: getPieceCount(
+              product,
+              cart[cartKey(product.id, variant.type)] ?? 0,
+            ),
+          })),
+        )
         .filter((item) => item.quantity > 0),
     [cart, locale, products],
   );
@@ -57,13 +76,15 @@ export function CheckoutForm({
   );
   const deliveryFee = 0;
   const total = subtotal + deliveryFee;
+  const totalPieces = selectedItems.reduce((sum, item) => sum + item.pieceCount, 0);
 
-  function updateQuantity(productId: string, delta: number) {
+  function updateQuantity(productId: string, variantType: ProductVariantType, delta: number) {
     setCart((current) => {
-      const nextValue = Math.max(0, (current[productId] ?? 0) + delta);
+      const key = cartKey(productId, variantType);
+      const nextValue = Math.max(0, (current[key] ?? 0) + delta);
       return {
         ...current,
-        [productId]: nextValue,
+        [key]: nextValue,
       };
     });
   }
@@ -72,8 +93,8 @@ export function CheckoutForm({
     if (next === "delivery" && fulfillment !== "delivery") {
       window.alert(
         locale === "en"
-          ? `Delivery fee is not added automatically because it depends on distance. After your order is submitted, please continue the delivery discussion via WhatsApp at ${sellerWhatsappDisplay} using your order code.`
-          : `Ongkir delivery tidak dihitung otomatis karena tergantung jarak. Setelah order terkirim, lanjut bahas delivery via WhatsApp ke ${sellerWhatsappDisplay} dengan nomor order kamu ya.`,
+          ? `Delivery fee is discussed manually first. After your order is sent, continue the delivery chat on WhatsApp at ${sellerWhatsappDisplay} with your order code.`
+          : `Ongkir delivery dibahas manual dulu ya. Setelah order terkirim, lanjutkan chat delivery via WhatsApp ke ${sellerWhatsappDisplay} sambil bawa kode order kamu.`,
       );
     }
 
@@ -85,7 +106,9 @@ export function CheckoutForm({
     setError("");
 
     if (!selectedItems.length) {
-      setError(locale === "en" ? "Please choose at least one item." : "Pilih minimal satu item.");
+      setError(
+        locale === "en" ? "Please choose at least one variant." : "Pilih minimal satu varian menu ya.",
+      );
       return;
     }
 
@@ -112,9 +135,7 @@ export function CheckoutForm({
         return;
       }
 
-      router.push(
-        `/order/${result.code}?name=${encodeURIComponent(customerName)}`,
-      );
+      router.push(`/order/${result.code}?name=${encodeURIComponent(customerName)}`);
       router.refresh();
     });
   }
@@ -122,21 +143,21 @@ export function CheckoutForm({
   return (
     <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
       <form onSubmit={handleSubmit} className="surface-card rounded-[2rem] p-5 sm:p-7">
-        <div className="grid gap-6">
+        <div className="grid gap-7">
           <section className="grid gap-4">
             <div>
               <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
-                {locale === "en" ? "Choose your box" : "Pilih isi pesanan"}
+                {locale === "en" ? "Choose your packs" : "Pilih pack favoritmu"}
               </p>
-              <h2 className="mt-3 font-display text-2xl">
+              <h2 className="mt-3 font-display text-2xl sm:text-3xl">
                 {locale === "en"
-                  ? "Build a simple pre-order in one screen."
-                  : "Susun pre-order dalam satu layar."}
+                  ? "Frozen or fried, every quantity is always packed as 3 pieces."
+                  : "Mau frozen atau fried, setiap 1 qty selalu berisi 3 pcs."}
               </h2>
             </div>
-            <div className="grid gap-3">
+
+            <div className="grid gap-4">
               {products.map((product) => {
-                const quantity = cart[product.id] ?? 0;
                 const name = locale === "en" ? product.nameEn : product.name;
                 const description =
                   locale === "en"
@@ -146,41 +167,115 @@ export function CheckoutForm({
                 return (
                   <div
                     key={product.id}
-                    className="rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white p-4"
+                    className="overflow-hidden rounded-[2rem] border border-[rgba(185,30,30,0.12)] bg-white shadow-[0_20px_40px_rgba(185,30,30,0.06)]"
                   >
-                    <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <h3 className="text-lg font-bold">{name}</h3>
-                        <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                          {description}
-                        </p>
-                      </div>
-                      <div className="text-right text-sm font-semibold text-[color:var(--brand-900)]">
-                        Rp {product.price.toLocaleString("id-ID")}
-                      </div>
-                    </div>
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="text-sm text-[color:var(--ink-700)]">
-                        {locale === "en" ? "Quantity" : "Jumlah"}
-                      </span>
-                      <div className="inline-flex items-center gap-2 rounded-full bg-[color:var(--paper-100)] p-1">
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(product.id, -1)}
-                          className="h-10 w-10 rounded-full bg-white text-lg font-bold text-[color:var(--brand-900)]"
-                        >
-                          -
-                        </button>
-                        <span className="min-w-8 text-center text-sm font-bold">
-                          {quantity}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => updateQuantity(product.id, 1)}
-                          className="h-10 w-10 rounded-full bg-[color:var(--brand-900)] text-lg font-bold text-white"
-                        >
-                          +
-                        </button>
+                    <div className="grid gap-4 p-4 lg:grid-cols-[0.92fr_1.08fr]">
+                      <ProductGallery
+                        images={product.images}
+                        name={name}
+                        aspectClassName="aspect-[1.02/1]"
+                        showThumbnails={false}
+                      />
+
+                      <div className="grid content-start gap-4">
+                        <div>
+                          <p className="text-xs font-black uppercase tracking-[0.2em] text-[color:var(--brand-900)]">
+                            {locale === "en"
+                              ? product.prepLabelEn
+                              : product.prepLabel}
+                          </p>
+                          <h3 className="mt-2 font-display text-3xl">{name}</h3>
+                          <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
+                            {description}
+                          </p>
+                        </div>
+
+                        <div className="rounded-[1.6rem] bg-[linear-gradient(135deg,#fff7f1,#fff1ea)] p-4">
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+                            {locale === "en" ? "How the quantity works" : "Cara hitung qty"}
+                          </p>
+                          <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
+                            {locale === "en"
+                              ? "1 qty = 1 pack = 3 pieces. So if you order 3 qty, you get 9 pieces."
+                              : "1 qty = 1 pack = 3 pcs. Jadi kalau pesan 3 qty, kamu akan dapat 9 pcs."}
+                          </p>
+                        </div>
+
+                        <div className="grid gap-3">
+                          {product.variants.map((variant) => {
+                            const quantity = cart[cartKey(product.id, variant.type)] ?? 0;
+
+                            return (
+                              <div
+                                key={`${product.id}-${variant.type}`}
+                                className="rounded-[1.5rem] border border-[color:var(--paper-300)] bg-[color:var(--paper-100)] p-4"
+                              >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                  <div>
+                                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+                                      {variant.label}
+                                    </p>
+                                    <p className="mt-1 text-sm text-[color:var(--ink-700)]">
+                                      {variant.type === "frozen"
+                                        ? locale === "en"
+                                          ? "Ready to stock in your freezer."
+                                          : "Siap masuk freezer dan digoreng kapan pun."
+                                        : locale === "en"
+                                          ? "Freshly fried for direct snacking."
+                                          : "Digoreng hangat buat langsung dinikmati."}
+                                    </p>
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-lg font-black text-[color:var(--brand-900)]">
+                                      Rp {variant.price.toLocaleString("id-ID")}
+                                    </p>
+                                    <p className="text-xs text-[color:var(--ink-700)]">
+                                      / 3 pcs
+                                    </p>
+                                  </div>
+                                </div>
+                                <div className="mt-4 flex items-center justify-between">
+                                  <div className="text-sm text-[color:var(--ink-700)]">
+                                    {quantity > 0 ? (
+                                      <span>
+                                        {quantity} qty · {getPieceCount(product, quantity)} pcs
+                                      </span>
+                                    ) : (
+                                      <span>
+                                        {locale === "en"
+                                          ? "Tap plus to add packs"
+                                          : "Tekan plus untuk tambah pack"}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="inline-flex items-center gap-2 rounded-full bg-white p-1 shadow-[inset_0_0_0_1px_rgba(185,30,30,0.08)]">
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateQuantity(product.id, variant.type, -1)
+                                      }
+                                      className="h-10 w-10 rounded-full bg-[color:var(--paper-100)] text-lg font-bold text-[color:var(--brand-900)]"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="min-w-10 text-center text-sm font-black">
+                                      {quantity}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateQuantity(product.id, variant.type, 1)
+                                      }
+                                      className="h-10 w-10 rounded-full bg-[color:var(--brand-900)] text-lg font-bold text-white"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -258,36 +353,24 @@ export function CheckoutForm({
               </p>
               <p className="mt-2">
                 {locale === "en"
-                  ? "Delivery is available, but the fee will be discussed manually with the seller because each area is different."
-                  : "Delivery tetap bisa, tapi ongkir dibahas manual dulu dengan seller karena tiap area beda harga."}
-              </p>
-              <p className="mt-2 font-semibold text-[color:var(--brand-900)]">
-                {locale === "en"
-                  ? "After order submission, use the WhatsApp button on your order page."
-                  : "Setelah order masuk, pakai tombol WhatsApp di halaman order kamu ya."}
+                  ? "Delivery fee is discussed manually first, because it depends on distance. Fill in your address so we can continue smoothly after payment review."
+                  : "Ongkir delivery dibahas manual dulu ya, karena tergantung jarak. Isi alamat biar nanti lanjut ngobrolnya lebih enak setelah pembayaran dicek."}
               </p>
             </div>
           ) : null}
 
-          {fulfillment === "delivery" ? (
-            <div>
-              <label className="label" htmlFor="address">
-                {locale === "en" ? "Delivery address" : "Alamat delivery"}
-              </label>
-              <textarea
-                id="address"
-                name="address"
-                className="field min-h-28"
-                required={fulfillment === "delivery"}
-              />
-            </div>
-          ) : null}
+          <div>
+            <label className="label" htmlFor="address">
+              {locale === "en" ? "Address (optional for pickup)" : "Alamat (opsional kalau pickup)"}
+            </label>
+            <textarea id="address" name="address" className="field min-h-24" />
+          </div>
 
           <div>
             <label className="label" htmlFor="note">
               {locale === "en" ? "Order notes" : "Catatan pesanan"}
             </label>
-            <textarea id="note" name="note" className="field min-h-28" />
+            <textarea id="note" name="note" className="field min-h-24" />
           </div>
 
           <div>
@@ -298,33 +381,27 @@ export function CheckoutForm({
               id="paymentProof"
               name="paymentProof"
               type="file"
-              accept="image/*,.pdf"
-              className="field"
+              accept="image/*,application/pdf"
+              className="field file:mr-4 file:rounded-full file:border-0 file:bg-[color:var(--brand-900)] file:px-4 file:py-2 file:font-semibold file:text-white"
               required
             />
           </div>
 
           {error ? (
-            <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+            <div className="rounded-[1.5rem] bg-[#fff2ef] px-4 py-3 text-sm font-semibold text-[color:var(--brand-900)]">
               {error}
-            </p>
+            </div>
           ) : null}
-        </div>
 
-        <div className="sticky-cta sticky bottom-0 mt-6 rounded-[1.75rem] border border-[color:var(--paper-300)] bg-white/95 p-4 backdrop-blur">
-          <div className="mb-3 flex items-center justify-between text-sm text-[color:var(--ink-700)]">
-            <span>{locale === "en" ? "Selected items" : "Item dipilih"}</span>
-            <span>{selectedItems.length}</span>
-          </div>
           <button
             type="submit"
             disabled={isPending}
-            className="btn-primary w-full px-5 py-4 text-base font-bold disabled:cursor-not-allowed disabled:opacity-70"
+            className="btn-primary px-6 py-4 text-center font-bold disabled:opacity-60"
           >
             {isPending
               ? locale === "en"
-                ? "Submitting..."
-                : "Mengirim..."
+                ? "Sending your order..."
+                : "Mengirim order..."
               : locale === "en"
                 ? `Submit order - Rp ${total.toLocaleString("id-ID")}`
                 : `Kirim order - Rp ${total.toLocaleString("id-ID")}`}
@@ -332,78 +409,92 @@ export function CheckoutForm({
         </div>
       </form>
 
-      <aside className="flex flex-col gap-4">
+      <aside className="grid content-start gap-4">
         <div className="surface-card rounded-[2rem] p-5 sm:p-6">
           <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
-            {locale === "en" ? "Manual transfer" : "Transfer manual"}
+            {locale === "en" ? "Order summary" : "Ringkasan pesanan"}
           </p>
-          <div className="mt-4 space-y-2">
-            <p className="text-sm text-[color:var(--ink-700)]">
-              {locale === "en"
-                ? "Transfer first, then upload your payment proof in the form."
-                : "Silakan transfer dulu, lalu upload bukti transfer di form."}
-            </p>
-            <div className="rounded-[1.5rem] bg-[color:var(--paper-100)] p-4">
-              <p className="text-sm font-semibold text-[color:var(--ink-700)]">{bankName}</p>
-              <p className="mt-2 text-xl font-black text-[color:var(--brand-900)]">
-                {bankAccountNumber}
-              </p>
-              <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                a.n. {bankAccountHolder}
-              </p>
+          <div className="mt-4 space-y-4">
+            {selectedItems.length > 0 ? (
+              selectedItems.map((item) => (
+                <div
+                  key={`${item.productId}-${item.variantType}`}
+                  className="rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white p-4"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="font-bold text-[color:var(--brand-900)]">
+                        {item.productName}
+                      </p>
+                      <p className="mt-1 text-sm text-[color:var(--ink-700)]">
+                        {item.variantLabel} · {item.quantity} qty · {item.pieceCount} pcs
+                      </p>
+                    </div>
+                    <p className="text-sm font-black text-[color:var(--brand-900)]">
+                      Rp {(item.unitPrice * item.quantity).toLocaleString("id-ID")}
+                    </p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-[1.5rem] border border-dashed border-[color:var(--paper-300)] bg-white px-4 py-5 text-sm leading-7 text-[color:var(--ink-700)]">
+                {locale === "en"
+                  ? "Your summary will appear here as soon as you add frozen or fried packs."
+                  : "Ringkasan akan muncul di sini begitu kamu menambahkan pack frozen atau fried."}
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 rounded-[1.6rem] bg-[linear-gradient(135deg,#fff7ef,#fff0e7)] p-4">
+            <div className="flex items-center justify-between text-sm text-[color:var(--ink-700)]">
+              <span>{locale === "en" ? "Total packs" : "Total qty pack"}</span>
+              <span className="font-bold">
+                {selectedItems.reduce((sum, item) => sum + item.quantity, 0)}
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm text-[color:var(--ink-700)]">
+              <span>{locale === "en" ? "Total pieces" : "Total pcs"}</span>
+              <span className="font-bold">{totalPieces}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm text-[color:var(--ink-700)]">
+              <span>Subtotal</span>
+              <span className="font-bold">Rp {subtotal.toLocaleString("id-ID")}</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm text-[color:var(--ink-700)]">
+              <span>{locale === "en" ? "Delivery fee" : "Ongkir"}</span>
+              <span className="font-bold">
+                {fulfillment === "delivery"
+                  ? locale === "en"
+                    ? "Discussed later"
+                    : "Dibahas menyusul"
+                  : "Rp 0"}
+              </span>
+            </div>
+            <div className="mt-3 flex items-center justify-between border-t border-dashed border-[rgba(185,30,30,0.18)] pt-3 text-base font-black text-[color:var(--brand-900)]">
+              <span>Total</span>
+              <span>Rp {total.toLocaleString("id-ID")}</span>
             </div>
           </div>
         </div>
 
         <div className="surface-card rounded-[2rem] p-5 sm:p-6">
-          <h3 className="font-display text-xl">
-            {locale === "en" ? "Order summary" : "Ringkasan pesanan"}
-          </h3>
-          <div className="mt-4 space-y-3">
-            {selectedItems.length ? (
-              selectedItems.map((item) => (
-                <div key={item.productId} className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-[color:var(--ink-700)]">
-                    {item.productName} x{item.quantity}
-                  </span>
-                  <span className="font-bold">
-                    Rp {(item.unitPrice * item.quantity).toLocaleString("id-ID")}
-                  </span>
-                </div>
-              ))
-            ) : (
-              <p className="text-sm text-[color:var(--ink-700)]">
-                {locale === "en"
-                  ? "Pick at least one menu item to see your total."
-                  : "Pilih minimal satu menu untuk lihat total pesanan."}
-              </p>
-            )}
-            <div className="border-t border-dashed border-[color:var(--paper-300)] pt-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span>Subtotal</span>
-                <span>Rp {subtotal.toLocaleString("id-ID")}</span>
-              </div>
-              {fulfillment === "delivery" ? (
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span>{locale === "en" ? "Delivery fee" : "Ongkir"}</span>
-                  <span className="text-right font-bold text-[color:var(--brand-900)]">
-                    {locale === "en" ? "Discussed via chat" : "Dibahas via chat"}
-                  </span>
-                </div>
-              ) : null}
-              <div className="mt-3 flex items-center justify-between text-base font-black text-[color:var(--brand-900)]">
-                <span>Total</span>
-                <span>Rp {total.toLocaleString("id-ID")}</span>
-              </div>
-              {fulfillment === "delivery" ? (
-                <p className="mt-3 text-xs leading-6 text-[color:var(--ink-700)]">
-                  {locale === "en"
-                    ? "Current total excludes delivery fee. Final delivery cost will be confirmed after chatting with the seller."
-                    : "Total saat ini belum termasuk ongkir. Ongkir final akan dikonfirmasi setelah chat dengan seller."}
-                </p>
-              ) : null}
-            </div>
+          <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
+            {locale === "en" ? "Transfer info" : "Info transfer"}
+          </p>
+          <div className="mt-4 rounded-[1.6rem] bg-white p-4">
+            <p className="text-sm text-[color:var(--ink-700)]">{bankName}</p>
+            <p className="mt-1 text-2xl font-black text-[color:var(--brand-900)]">
+              {bankAccountNumber}
+            </p>
+            <p className="mt-1 text-sm font-semibold text-[color:var(--ink-700)]">
+              a.n. {bankAccountHolder}
+            </p>
           </div>
+          <p className="mt-4 text-sm leading-7 text-[color:var(--ink-700)]">
+            {locale === "en"
+              ? "Transfer first, upload the proof here, and keep your receipt after checkout so tracking stays easy."
+              : "Transfer dulu, upload buktinya di sini, lalu simpan receipt setelah checkout supaya progress order gampang dilacak lagi."}
+          </p>
         </div>
       </aside>
     </div>

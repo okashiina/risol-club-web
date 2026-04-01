@@ -266,10 +266,18 @@ export default async function OrderTrackingPage({
             </h2>
             <div className="mt-4 space-y-3">
               {order.items.map((item) => (
-                <div key={item.productId} className="flex items-center justify-between text-sm">
-                  <span className="font-semibold text-[color:var(--ink-700)]">
-                    {item.productName} x{item.quantity}
-                  </span>
+                <div
+                  key={`${item.productId}-${item.variantType ?? "legacy"}`}
+                  className="flex items-center justify-between text-sm"
+                >
+                  <div>
+                    <span className="font-semibold text-[color:var(--ink-700)]">
+                      {item.productName}
+                    </span>
+                    <p className="text-xs text-[color:var(--ink-700)]">
+                      {item.variantLabel} • {item.quantity} qty • {item.pieceCount} pcs
+                    </p>
+                  </div>
                   <span className="font-bold">
                     {formatCurrency(item.unitPrice * item.quantity)}
                   </span>
@@ -327,16 +335,11 @@ export default async function OrderTrackingPage({
                 >
                   {locale === "en" ? "Download proof" : "Download bukti bayar"}
                 </a>
-                <a
-                  href={order.paymentProof.dataUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-secondary px-4 py-3 text-center text-sm font-bold"
-                >
-                  {locale === "en"
-                    ? `Open full file${paymentProofLabel ? ` - ${paymentProofLabel}` : ""}`
-                    : `Buka file penuh${paymentProofLabel ? ` - ${paymentProofLabel}` : ""}`}
-                </a>
+                {paymentProofLabel ? (
+                  <p className="rounded-[1rem] bg-[color:var(--paper-100)] px-4 py-3 text-sm font-semibold text-[color:var(--ink-700)]">
+                    {paymentProofLabel}
+                  </p>
+                ) : null}
               </div>
             </div>
           ) : null}

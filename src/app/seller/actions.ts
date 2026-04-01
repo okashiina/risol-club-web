@@ -2,7 +2,17 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { del, put } from "@vercel/blob";
 import { loginSeller, logoutSeller } from "@/lib/auth";
+import {
+  cloneImages,
+  cloneVariants,
+  DEFAULT_PACK_SIZE,
+  findCatalogBlueprint,
+  getPackSize,
+  getPieceCount,
+  getVariant,
+} from "@/lib/catalog";
 import {
   calculateProductCost,
   getProductStock,
@@ -12,7 +22,7 @@ import {
   nowIso,
   writeStore,
 } from "@/lib/data-store";
-import { OrderStatus, Product, StoreData } from "@/lib/types";
+import { Order, OrderStatus, Product, StoreData } from "@/lib/types";
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -32,6 +42,54 @@ function revalidateSeller() {
   revalidatePath("/seller/costing");
   revalidatePath("/seller/inventory");
   revalidatePath("/seller/reports");
+}
+
+function makeOrderCode(orderCount: number) {
+  const date = new Date();
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `RC-${day}${month}-${String(orderCount + 1).padStart(3, "0")}`;
+}
+
+function variantsFromFormData(formData: FormData, fallback: Product) {
+  const frozenPrice = numberValue(formData, "frozenPrice");
+  const friedPrice = numberValue(formData, "friedPrice");
+
+  return [
+    {
+      type: "frozen" as const,
+      label: textValue(formData, "frozenLabel") || "Frozen",
+      price: frozenPrice || getVariant(fallback, "frozen")?.price || 28000,
+      isActive: textValue(formData, "frozenActive") !== "off",
+    },
+    {
+      type: "fried" as const,
+      label: textValue(formData, "friedLabel") || "Fried",
+      price: friedPrice || getVariant(fallback, "fried")?.price || 30000,
+      isActive: textValue(formData, "friedActive") !== "off",
+    },
+  ];
+}
+
+async function uploadProductImages(files: File[], slug: string, productName: string) {
+  const uploaded: Array<{ url: string; alt: string }> = [];
+
+  for (const [index, file] of files.entries()) {
+    const extension = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const pathname = `products/${slug}/${Date.now()}-${index + 1}.${extension}`;
+    const result = await put(pathname, file, {
+      access: "public",
+      addRandomSuffix: true,
+      contentType: file.type || "application/octet-stream",
+    });
+
+    uploaded.push({
+      url: result.url,
+      alt: `${productName} photo ${index + 1}`,
+    });
+  }
+
+  return uploaded;
 }
 
 function latestPriceForIngredient(store: StoreData, ingredientId: string) {
@@ -160,35 +218,420 @@ export async function updateOrderStatusAction(formData: FormData) {
   revalidateSeller();
 }
 
+export async function createManualOrderAction(formData: FormData) {
+  const customerName = textValue(formData, "customerName");
+  const customerWhatsapp = textValue(formData, "customerWhatsapp");
+  const preorderDate = textValue(formData, "preorderDate");
+  const fulfillmentMethod =
+    textValue(formData, "fulfillmentMethod") === "delivery" ? "delivery" : "pickup";
+  const address = textValue(formData, "address");
+  const note = textValue(formData, "note");
+  const status = textValue(formData, "status") as OrderStatus;
+  const itemsRaw = textValue(formData, "items");
+  const paymentProof = formData.get("paymentProof");
+
+  if (!customerName || !customerWhatsapp || !preorderDate || !itemsRaw) {
+    return;
+  }
+
+  const parsedItems = JSON.parse(itemsRaw) as Array<{
+    productId: string;
+    productName: string;
+    variantType?: "frozen" | "fried";
+    variantLabel: string;
+    quantity: number;
+  }>;
+
+  let paymentPayload:
+    | {
+        fileName: string;
+        mimeType: string;
+        dataUrl: string;
+        uploadedAt: string;
+      }
+    | undefined;
+
+  if (paymentProof instanceof File && paymentProof.size > 0) {
+    const buffer = Buffer.from(await paymentProof.arrayBuffer());
+    paymentPayload = {
+      fileName: paymentProof.name,
+      mimeType: paymentProof.type || "application/octet-stream",
+      dataUrl: `data:${paymentProof.type || "application/octet-stream"};base64,${buffer.toString("base64")}`,
+      uploadedAt: nowIso(),
+    };
+  }
+
+  await writeStore((store) => {
+    const items = parsedItems
+      .map((item) => {
+        const product = store.products.find((entry) => entry.id === item.productId);
+        if (!product) {
+          return null;
+        }
+
+        const variant = getVariant(product, item.variantType);
+
+        return {
+          ...item,
+          variantLabel: item.variantLabel || variant?.label || "Legacy order",
+          pieceCount: getPieceCount(product, item.quantity),
+          unitPrice: variant?.price || product.price,
+          costSnapshot: calculateProductCost(store, item.productId),
+        };
+      })
+      .filter(
+        (
+          item,
+        ): item is {
+          productId: string;
+          productName: string;
+          variantType?: "frozen" | "fried";
+          variantLabel: string;
+          quantity: number;
+          pieceCount: number;
+          unitPrice: number;
+          costSnapshot: number;
+        } => Boolean(item),
+      );
+
+    if (!items.length) {
+      return store;
+    }
+
+    const subtotal = items.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
+    const deliveryFee = 0;
+    const code = makeOrderCode(store.orders.length);
+    const createdAt = nowIso();
+
+    const order: Order = {
+      id: makeId("ord"),
+      code,
+      source: "seller_manual",
+      locale: "id",
+      customerName,
+      customerWhatsapp,
+      fulfillmentMethod,
+      address: fulfillmentMethod === "delivery" ? address || undefined : undefined,
+      preorderDate,
+      note: note || undefined,
+      deliveryFee,
+      subtotal,
+      total: subtotal + deliveryFee,
+      status,
+      items,
+      paymentProof: paymentPayload,
+      createdAt,
+      updatedAt: createdAt,
+    };
+
+    store.orders.unshift(order);
+
+    if (isSalesStatus(status)) {
+      for (const item of items) {
+        const stock = store.productStocks.find((entry) => entry.productId === item.productId);
+
+        if (stock) {
+          stock.stock -= item.quantity;
+          stock.updatedAt = createdAt;
+        }
+
+        store.inventoryMovements.unshift({
+          id: makeId("move"),
+          itemType: "product",
+          itemId: item.productId,
+          type: "sale",
+          quantity: -item.quantity,
+          note: `Manual order ${code} reserved/confirmed`,
+          createdAt,
+        });
+      }
+    }
+
+    store.notifications.unshift({
+      id: makeId("notif"),
+      title: "Order manual ditambahkan",
+      body: `${customerName} dimasukkan ke sistem sebagai ${code}.`,
+      href: "/seller/orders",
+      read: false,
+      createdAt,
+    });
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function deleteOrderAction(formData: FormData) {
+  const orderId = textValue(formData, "orderId");
+  const confirmation = textValue(formData, "confirmation");
+
+  if (confirmation !== "DELETE") {
+    return;
+  }
+
+  await writeStore((store) => {
+    const order = store.orders.find((item) => item.id === orderId);
+    if (!order) {
+      return store;
+    }
+
+    if (isSalesStatus(order.status)) {
+      for (const item of order.items) {
+        const stock = store.productStocks.find((entry) => entry.productId === item.productId);
+
+        if (stock) {
+          stock.stock += item.quantity;
+          stock.updatedAt = nowIso();
+        }
+
+        store.inventoryMovements.unshift({
+          id: makeId("move"),
+          itemType: "product",
+          itemId: item.productId,
+          type: "correction",
+          quantity: item.quantity,
+          note: `Order ${order.code} deleted and stock returned`,
+          createdAt: nowIso(),
+        });
+      }
+    }
+
+    store.orders = store.orders.filter((item) => item.id !== orderId);
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function deleteProductImageAction(formData: FormData) {
+  const productId = textValue(formData, "productId");
+  const imageId = textValue(formData, "imageId");
+
+  let imageUrl = "";
+
+  await writeStore((store) => {
+    const product = store.products.find((item) => item.id === productId);
+    if (!product) {
+      return store;
+    }
+
+    if (product.images.length <= 1 || product.images[0]?.id === imageId) {
+      return store;
+    }
+
+    const image = product.images.find((item) => item.id === imageId);
+    imageUrl = image?.url || "";
+    product.images = product.images
+      .filter((item) => item.id !== imageId)
+      .map((imageItem, index) => ({
+        ...imageItem,
+        position: index,
+      }));
+
+    return store;
+  });
+
+  if (imageUrl.startsWith("https://")) {
+    try {
+      await del(imageUrl);
+    } catch {
+      // Ignore blob deletion failures so UI remains resilient.
+    }
+  }
+
+  revalidateSeller();
+}
+
+export async function setPrimaryProductImageAction(formData: FormData) {
+  const productId = textValue(formData, "productId");
+  const imageId = textValue(formData, "imageId");
+
+  await writeStore((store) => {
+    const product = store.products.find((item) => item.id === productId);
+    if (!product) {
+      return store;
+    }
+
+    const target = product.images.find((item) => item.id === imageId);
+    if (!target) {
+      return store;
+    }
+
+    product.images = [target, ...product.images.filter((item) => item.id !== imageId)].map(
+      (image, index) => ({
+        ...image,
+        position: index,
+      }),
+    );
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function reorderProductImageAction(formData: FormData) {
+  const productId = textValue(formData, "productId");
+  const imageId = textValue(formData, "imageId");
+  const direction = textValue(formData, "direction");
+
+  await writeStore((store) => {
+    const product = store.products.find((item) => item.id === productId);
+    if (!product) {
+      return store;
+    }
+
+    const currentIndex = product.images.findIndex((item) => item.id === imageId);
+    if (currentIndex === -1) {
+      return store;
+    }
+
+    if (currentIndex === 0) {
+      return store;
+    }
+
+    const targetIndex =
+      direction === "left"
+        ? Math.max(currentIndex - 1, 0)
+        : Math.min(currentIndex + 1, product.images.length - 1);
+
+    if (targetIndex === currentIndex) {
+      return store;
+    }
+
+    const nextImages = [...product.images];
+    const [movedImage] = nextImages.splice(currentIndex, 1);
+    nextImages.splice(targetIndex, 0, movedImage);
+
+    product.images = nextImages.map((image, index) => ({
+      ...image,
+      position: index,
+    }));
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
 export async function upsertProductAction(formData: FormData) {
   const id = textValue(formData, "id");
   const now = nowIso();
+  const imageFiles = formData
+    .getAll("images")
+    .filter((value): value is File => value instanceof File && value.size > 0);
+
+  if (imageFiles.length > 0 && !process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error("BLOB_READ_WRITE_TOKEN belum diatur. Set env ini dulu untuk upload foto menu.");
+  }
+
+  const uploadedImages =
+    imageFiles.length > 0
+      ? await uploadProductImages(
+          imageFiles,
+          textValue(formData, "slug"),
+          textValue(formData, "name"),
+        )
+      : [];
 
   await writeStore((store) => {
+    const existing = store.products.find((product) => product.id === id);
+    const blueprint =
+      findCatalogBlueprint({
+        slug: textValue(formData, "slug"),
+        name: textValue(formData, "name"),
+      }) ??
+      (existing ? findCatalogBlueprint(existing) : undefined);
+    const fallbackProduct: Product =
+      existing ?? {
+        id: id || makeId("prod"),
+        slug: textValue(formData, "slug"),
+        name: textValue(formData, "name"),
+        nameEn: textValue(formData, "nameEn") || textValue(formData, "name"),
+        shortDescription: textValue(formData, "shortDescription"),
+        shortDescriptionEn:
+          textValue(formData, "shortDescriptionEn") ||
+          textValue(formData, "shortDescription"),
+        description: textValue(formData, "description"),
+        descriptionEn:
+          textValue(formData, "descriptionEn") || textValue(formData, "description"),
+        price: numberValue(formData, "price") || 28000,
+        featured: textValue(formData, "featured") === "on",
+        isActive: textValue(formData, "isActive") === "on",
+        accent:
+          textValue(formData, "accent") ||
+          blueprint?.accent ||
+          "from-[#ffe4dd] via-white to-[#ffd9c6]",
+        prepLabel:
+          textValue(formData, "prepLabel") ||
+          blueprint?.prepLabel ||
+          "Pre-order batch • 1 qty = 3 pcs",
+        prepLabelEn:
+          textValue(formData, "prepLabelEn") ||
+          blueprint?.prepLabelEn ||
+          "Pre-order batch • 1 qty = 3 pcs",
+        packSize: DEFAULT_PACK_SIZE,
+        variants: blueprint
+          ? cloneVariants(blueprint.variants)
+          : cloneVariants([
+              { type: "frozen", label: "Frozen", price: 28000 },
+              { type: "fried", label: "Fried", price: 30000 },
+            ]),
+        images: blueprint
+          ? cloneImages(blueprint.images, blueprint.name)
+          : [],
+        createdAt: now,
+        updatedAt: now,
+      };
+
+    const variants = variantsFromFormData(formData, fallbackProduct);
+    const price = Math.min(...variants.map((variant) => variant.price));
     const payload: Product = {
-      id: id || makeId("prod"),
-      slug: textValue(formData, "slug"),
-      name: textValue(formData, "name"),
-      nameEn: textValue(formData, "nameEn") || textValue(formData, "name"),
-      shortDescription: textValue(formData, "shortDescription"),
+      ...fallbackProduct,
+      slug: textValue(formData, "slug") || fallbackProduct.slug,
+      name: textValue(formData, "name") || fallbackProduct.name,
+      nameEn:
+        textValue(formData, "nameEn") ||
+        fallbackProduct.nameEn ||
+        textValue(formData, "name") ||
+        fallbackProduct.name,
+      shortDescription:
+        textValue(formData, "shortDescription") || fallbackProduct.shortDescription,
       shortDescriptionEn:
         textValue(formData, "shortDescriptionEn") ||
-        textValue(formData, "shortDescription"),
-      description: textValue(formData, "description"),
+        fallbackProduct.shortDescriptionEn ||
+        textValue(formData, "shortDescription") ||
+        fallbackProduct.shortDescription,
+      description: textValue(formData, "description") || fallbackProduct.description,
       descriptionEn:
-        textValue(formData, "descriptionEn") || textValue(formData, "description"),
-      price: numberValue(formData, "price"),
+        textValue(formData, "descriptionEn") ||
+        fallbackProduct.descriptionEn ||
+        textValue(formData, "description") ||
+        fallbackProduct.description,
+      price,
       featured: textValue(formData, "featured") === "on",
       isActive: textValue(formData, "isActive") === "on",
-      accent: textValue(formData, "accent") || "from-rose-100 via-white to-orange-100",
-      prepLabel: textValue(formData, "prepLabel") || "Ready in 1 day pre-order",
+      accent: textValue(formData, "accent") || fallbackProduct.accent,
+      prepLabel: textValue(formData, "prepLabel") || fallbackProduct.prepLabel,
       prepLabelEn:
-        textValue(formData, "prepLabelEn") || "1 day pre-order lead time",
-      createdAt: now,
+        textValue(formData, "prepLabelEn") || fallbackProduct.prepLabelEn,
+      packSize: numberValue(formData, "packSize") || getPackSize(fallbackProduct),
+      variants,
+      images: [
+        ...fallbackProduct.images,
+        ...uploadedImages.map((image, index) => ({
+          id: makeId("img"),
+          url: image.url,
+          alt: image.alt,
+          position: fallbackProduct.images.length + index,
+        })),
+      ],
       updatedAt: now,
     };
-
-    const existing = store.products.find((product) => product.id === id);
 
     if (existing) {
       Object.assign(existing, { ...payload, createdAt: existing.createdAt });
@@ -520,7 +963,32 @@ export async function recordProductionAction(formData: FormData) {
       );
 
       if (ingredient) {
-        const used = (item.quantity / Math.max(recipe.yieldCount, 1)) * quantity;
+        const used =
+          (item.quantity / Math.max(recipe.yieldCount, 1)) *
+          getPieceCount(
+            store.products.find((entry) => entry.id === productId) ?? {
+              id: productId,
+              slug: "",
+              name: "",
+              nameEn: "",
+              shortDescription: "",
+              shortDescriptionEn: "",
+              description: "",
+              descriptionEn: "",
+              price: 0,
+              featured: false,
+              isActive: true,
+              accent: "",
+              prepLabel: "",
+              prepLabelEn: "",
+              packSize: DEFAULT_PACK_SIZE,
+              variants: [],
+              images: [],
+              createdAt: nowIso(),
+              updatedAt: nowIso(),
+            },
+            quantity,
+          );
         ingredient.stock -= used;
         store.inventoryMovements.unshift({
           id: makeId("move"),
@@ -528,7 +996,7 @@ export async function recordProductionAction(formData: FormData) {
           itemId: ingredient.id,
           type: "production",
           quantity: -used,
-          note: `Used for production of ${quantity} batch`,
+          note: `Used for production of ${quantity} pack`,
           createdAt: nowIso(),
         });
       }
@@ -542,7 +1010,7 @@ export async function recordProductionAction(formData: FormData) {
       itemId: productId,
       type: "production",
       quantity,
-      note: "Production batch added",
+      note: "Production pack added",
       createdAt: nowIso(),
     });
 

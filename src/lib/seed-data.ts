@@ -1,3 +1,4 @@
+import { cloneImages, cloneVariants, DEFAULT_PACK_SIZE } from "@/lib/catalog";
 import { StoreData } from "@/lib/types";
 
 const now = "2026-03-31T10:00:00.000Z";
@@ -153,41 +154,71 @@ export const seedData: StoreData = {
   products: [
     {
       id: "prod-1",
-      slug: "risol-mayo",
-      name: "Risol Mayo",
-      nameEn: "Mayo Risol",
-      shortDescription: "Isi smoked beef, mayo, dan keju yang creamy-gurih.",
-      shortDescriptionEn: "Smoked beef, mayo, and cheese with a creamy savory bite.",
+      slug: "smoked-beef-mayo",
+      name: "Smoked Beef Mayo",
+      nameEn: "Smoked Beef Mayo",
+      shortDescription:
+        "Isi smoked beef, mayo, cheese, dan egg yang gurih creamy dalam pack isi 3 pcs.",
+      shortDescriptionEn:
+        "A creamy savory trio with smoked beef, mayo, cheese, and egg in a 3-piece pack.",
       description:
-        "Menu favorit dengan tekstur lembut di luar dan isian mayo-smoked beef yang lumer. Cocok untuk hampers kecil, coffee pairing, atau stok ngemil satu rumah.",
+        "Smoked Beef Mayo jadi menu comfort snack yang paling aman buat ramai-ramai. Rasanya gurih, creamy, dan familiar, dengan format 1 qty = 3 pcs jadi enak buat stok freezer ataupun langsung digoreng hangat buat nyemil sore 😊🙌",
       descriptionEn:
-        "A fan favorite with a tender wrapper and creamy mayo-smoked beef filling. Perfect for gifting, coffee pairings, or home snacking.",
-      price: 18000,
+        "Smoked Beef Mayo is the crowd-pleasing comfort snack: savory, creamy, familiar, and sold in 3-piece packs that work well for freezer stock or a warm fried snack.",
+      price: 28000,
       featured: true,
       isActive: true,
-      accent: "from-rose-100 via-white to-orange-100",
-      prepLabel: "Ready in 1 day pre-order",
-      prepLabelEn: "1 day pre-order lead time",
+      accent: "from-[#ffe4dd] via-white to-[#ffd9c6]",
+      prepLabel: "Pre-order batch • 1 qty = 3 pcs",
+      prepLabelEn: "Pre-order batch • 1 qty = 3 pcs",
+      packSize: DEFAULT_PACK_SIZE,
+      variants: cloneVariants([
+        { type: "frozen", label: "Frozen", price: 28000 },
+        { type: "fried", label: "Fried", price: 30000 },
+      ]),
+      images: cloneImages(
+        [
+          "/catalog/smoked-beef-mayo/01.jpeg",
+          "/catalog/smoked-beef-mayo/02.jpeg",
+          "/catalog/smoked-beef-mayo/03.jpeg",
+        ],
+        "Smoked Beef Mayo",
+      ),
       createdAt: now,
       updatedAt: now,
     },
     {
       id: "prod-2",
-      slug: "risol-coklat",
-      name: "Risol Coklat",
-      nameEn: "Chocolate Risol",
-      shortDescription: "Manis, lembut, dan cocok buat dessert snack.",
-      shortDescriptionEn: "Sweet, soft, and perfect as a dessert-style snack.",
+      slug: "choco-cheese",
+      name: "Choco Cheese",
+      nameEn: "Choco Cheese",
+      shortDescription:
+        "Cokelat renyah yang ketemu keju lembut, manis-gurihnya bikin susah berhenti.",
+      shortDescriptionEn:
+        "Chocolate crunch meets soft cheese in a sweet-savory pack that is hard to stop eating.",
       description:
-        "Risol dessert dengan filling coklat yang lembut dan manisnya pas. Enak disajikan hangat untuk teman ngeteh atau hadiah kecil yang cute.",
+        "Risol Choco Cheese hadir buat kamu yang suka dessert snack dengan tekstur playful. Ada sensasi crunchy cokelat, ada lembut keju, dan setiap 1 qty selalu datang dalam 1 pack isi 3 pcs yang cocok buat dibagi atau dimakan sendiri pelan-pelan 😊🙌",
       descriptionEn:
-        "A dessert-style risol with soft chocolate filling and balanced sweetness. Best served warm for tea time or as a cute little gift.",
-      price: 16000,
+        "Choco Cheese Risol is made for playful dessert-snack cravings. Expect a chocolate crunch, a soft cheese finish, and 1 order quantity always packed as 3 pieces for sharing or savoring slowly.",
+      price: 28000,
       featured: true,
       isActive: true,
-      accent: "from-amber-100 via-white to-rose-100",
-      prepLabel: "Ready in 1 day pre-order",
-      prepLabelEn: "1 day pre-order lead time",
+      accent: "from-[#fff0df] via-white to-[#ffe4d8]",
+      prepLabel: "Pre-order batch • 1 qty = 3 pcs",
+      prepLabelEn: "Pre-order batch • 1 qty = 3 pcs",
+      packSize: DEFAULT_PACK_SIZE,
+      variants: cloneVariants([
+        { type: "frozen", label: "Frozen", price: 28000 },
+        { type: "fried", label: "Fried", price: 30000 },
+      ]),
+      images: cloneImages(
+        [
+          "/catalog/choco-cheese/01.jpeg",
+          "/catalog/choco-cheese/02.jpeg",
+          "/catalog/choco-cheese/03.jpeg",
+        ],
+        "Choco Cheese",
+      ),
       createdAt: now,
       updatedAt: now,
     },
@@ -236,6 +267,7 @@ export const seedData: StoreData = {
     {
       id: "ord-1",
       code: "RC-3103-001",
+      source: "web",
       locale: "id",
       customerName: "Nadia",
       customerWhatsapp: "628111111111",
@@ -249,17 +281,23 @@ export const seedData: StoreData = {
       items: [
         {
           productId: "prod-1",
-          productName: "Risol Mayo",
+          productName: "Smoked Beef Mayo",
+          variantType: "fried",
+          variantLabel: "Fried",
           quantity: 2,
-          unitPrice: 18000,
-          costSnapshot: 11,
+          pieceCount: 6,
+          unitPrice: 30000,
+          costSnapshot: 32.4,
         },
         {
           productId: "prod-2",
-          productName: "Risol Coklat",
+          productName: "Choco Cheese",
+          variantType: "frozen",
+          variantLabel: "Frozen",
           quantity: 1,
-          unitPrice: 16000,
-          costSnapshot: 6.49,
+          pieceCount: 3,
+          unitPrice: 28000,
+          costSnapshot: 9.81,
         },
       ],
       paymentProof: {
@@ -275,6 +313,7 @@ export const seedData: StoreData = {
     {
       id: "ord-2",
       code: "RC-3003-004",
+      source: "web",
       locale: "id",
       customerName: "Tara",
       customerWhatsapp: "628222222222",
@@ -289,10 +328,13 @@ export const seedData: StoreData = {
       items: [
         {
           productId: "prod-1",
-          productName: "Risol Mayo",
+          productName: "Smoked Beef Mayo",
+          variantType: "frozen",
+          variantLabel: "Frozen",
           quantity: 4,
-          unitPrice: 18000,
-          costSnapshot: 11,
+          pieceCount: 12,
+          unitPrice: 28000,
+          costSnapshot: 32.4,
         },
       ],
       createdAt: "2026-03-29T12:10:00.000Z",

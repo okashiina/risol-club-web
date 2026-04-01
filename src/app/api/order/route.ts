@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getPieceCount, getVariant } from "@/lib/catalog";
 import {
   calculateProductCost,
   makeId,
@@ -40,6 +41,8 @@ export async function POST(request: Request) {
     quantity: number;
     unitPrice: number;
     productName: string;
+    variantType?: "frozen" | "fried";
+    variantLabel?: string;
   }[];
 
   if (!parsedItems.length) {
@@ -99,6 +102,7 @@ export async function POST(request: Request) {
     current.orders.unshift({
       id: makeId("ord"),
       code,
+      source: "web",
       locale,
       customerName,
       customerWhatsapp,
@@ -110,10 +114,18 @@ export async function POST(request: Request) {
       subtotal,
       total,
       status: "payment_review",
-      items: parsedItems.map((item) => ({
-        ...item,
-        costSnapshot: calculateProductCost(current, item.productId),
-      })),
+      items: parsedItems.map((item) => {
+        const product = current.products.find((entry) => entry.id === item.productId);
+        const variant = product ? getVariant(product, item.variantType) : undefined;
+
+        return {
+          ...item,
+          variantLabel: item.variantLabel || variant?.label || "Legacy order",
+          pieceCount: product ? getPieceCount(product, item.quantity) : item.quantity * 3,
+          unitPrice: variant?.price || item.unitPrice,
+          costSnapshot: calculateProductCost(current, item.productId),
+        };
+      }),
       paymentProof: paymentPayload,
       createdAt: nowIso(),
       updatedAt: nowIso(),

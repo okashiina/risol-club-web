@@ -1,21 +1,21 @@
 import { ActionButton } from "@/components/action-button";
-import { readStore } from "@/lib/data-store";
 import {
   adjustIngredientStockAction,
   adjustProductStockAction,
   recordProductionAction,
 } from "@/app/seller/actions";
+import { readSellerInventoryData } from "@/lib/store-projections";
 
 export default async function SellerInventoryPage() {
-  const store = await readStore();
+  const { products, ingredients, movements } = await readSellerInventoryData();
 
   return (
     <div className="grid gap-6">
       <section className="surface-card rounded-[2rem] p-6">
         <h1 className="font-display text-4xl">Inventory</h1>
         <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
-          Kelola stock bahan, stock produk jadi, dan catat batch produksi agar mutasi
-          stok tetap sistematis.
+          Kelola stock bahan, stock produk jadi dalam satuan pack jual, dan catat
+          produksi agar mutasi stok tetap sistematis.
         </p>
       </section>
 
@@ -25,7 +25,7 @@ export default async function SellerInventoryPage() {
           <div className="mt-4 grid gap-4">
             <select name="productId" className="field" required>
               <option value="">Pilih produk</option>
-              {store.products.map((product) => (
+              {products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.name}
                 </option>
@@ -36,7 +36,7 @@ export default async function SellerInventoryPage() {
               type="number"
               min="1"
               className="field"
-              placeholder="Jumlah batch / pcs"
+              placeholder="Jumlah pack yang diproduksi"
             />
             <ActionButton className="rounded-full bg-[color:var(--brand-900)] px-5 py-4 font-bold text-white">
               Save production
@@ -49,7 +49,7 @@ export default async function SellerInventoryPage() {
           <div className="mt-4 grid gap-4">
             <select name="ingredientId" className="field" required>
               <option value="">Pilih bahan</option>
-              {store.ingredients.map((ingredient) => (
+              {ingredients.map((ingredient) => (
                 <option key={ingredient.id} value={ingredient.id}>
                   {ingredient.name}
                 </option>
@@ -73,7 +73,7 @@ export default async function SellerInventoryPage() {
           <div className="mt-4 grid gap-4">
             <select name="productId" className="field" required>
               <option value="">Pilih produk</option>
-              {store.products.map((product) => (
+              {products.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.name}
                 </option>
@@ -97,7 +97,7 @@ export default async function SellerInventoryPage() {
         <div className="surface-card rounded-[2rem] p-6">
           <h2 className="font-display text-2xl">Ingredient stock</h2>
           <div className="mt-4 grid gap-3">
-            {store.ingredients.map((ingredient) => (
+            {ingredients.map((ingredient) => (
               <div key={ingredient.id} className="rounded-[1.5rem] bg-white p-4">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-[color:var(--brand-900)]">
@@ -118,7 +118,7 @@ export default async function SellerInventoryPage() {
         <div className="surface-card rounded-[2rem] p-6">
           <h2 className="font-display text-2xl">Recent movements</h2>
           <div className="mt-4 grid gap-3">
-            {store.inventoryMovements.slice(0, 10).map((movement) => (
+            {movements.map((movement) => (
               <div key={movement.id} className="rounded-[1.5rem] bg-white p-4">
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-[color:var(--brand-900)]">

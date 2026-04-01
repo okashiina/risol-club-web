@@ -2,14 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
+import { ProductGallery } from "@/components/product-gallery";
+import { getDisplayPrice, getVariant } from "@/lib/catalog";
 import { getLocale } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/reports";
-import { readStore } from "@/lib/data-store";
+import { readPublicCatalogData } from "@/lib/store-projections";
 
 export default async function Home() {
   const locale = await getLocale();
-  const store = await readStore();
-  const products = store.products.filter((product) => product.isActive);
+  const { settings, products } = await readPublicCatalogData();
 
   return (
     <div className="safe-pt min-h-screen">
@@ -30,54 +31,31 @@ export default async function Home() {
 
       <main className="page-shell pb-16 pt-6">
         <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-          <div className="hero-surface grain-overlay overflow-hidden rounded-[2.75rem] p-6 sm:p-8">
+          <div className="hero-surface grain-overlay overflow-hidden rounded-[2.9rem] p-6 sm:p-8">
             <p className="pill bg-white/90 text-[color:var(--brand-900)]">
-              {locale === "en" ? "Handmade pre-order risol" : "Risol pre-order handmade"}
+              {locale === "en" ? "Small-batch risol pre-order" : "Pre-order risol small batch"}
             </p>
             <h1 className="mt-4 max-w-3xl font-display text-4xl leading-tight sm:text-6xl">
               {locale === "en"
-                ? "Soft wrappers, generous fillings, and a tiny brand world that feels giftable."
-                : "Kulit lembut, isian royal, dan dunia kecil Risol Club yang terasa manis buat dihadiahkan."}
+                ? "Two comfort-snack stars, ready in frozen or fried packs that feel instantly giftable."
+                : "Dua comfort snack andalan, siap dipesan frozen atau fried dalam pack yang rasanya manis buat dibawa pulang."}
             </h1>
             <p className="mt-5 max-w-2xl text-base leading-8 text-[color:var(--ink-700)] sm:text-lg">
               {locale === "en"
-                ? "Browse the menu, choose pickup or delivery, upload your payment proof, and continue delivery discussion by WhatsApp if needed."
-                : "Lihat menu, pilih pickup atau delivery, upload bukti transfer, lalu lanjut bahas ongkir via WhatsApp kalau memang perlu delivery."}
+                ? "Pick your flavor, choose the serving style, upload payment proof, and keep the receipt so you can track the order again anytime."
+                : "Pilih rasa, tentukan mau frozen atau fried, upload bukti transfer, lalu simpan receipt supaya progres order gampang dicek lagi kapan pun."}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/checkout"
-                className="btn-primary px-6 py-4 text-center font-bold"
-              >
+              <Link href="/checkout" className="btn-primary px-6 py-4 text-center font-bold">
                 {locale === "en" ? "Start your order" : "Mulai pesan"}
               </Link>
               <a href="#menu" className="btn-secondary px-6 py-4 text-center font-bold">
                 {locale === "en" ? "See the menu" : "Lihat menu"}
               </a>
             </div>
-            <div className="mt-8 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[1.5rem] bg-white/80 px-4 py-4">
-                <p className="text-sm font-black text-[color:var(--brand-900)]">2 menu</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                  {locale === "en" ? "Curated and easy to choose." : "Kurasi singkat, gampang dipilih."}
-                </p>
-              </div>
-              <div className="rounded-[1.5rem] bg-white/80 px-4 py-4">
-                <p className="text-sm font-black text-[color:var(--brand-900)]">1 day lead</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                  {locale === "en" ? "Best for planned pre-orders." : "Cocok untuk pre-order terencana."}
-                </p>
-              </div>
-              <div className="rounded-[1.5rem] bg-white/80 px-4 py-4">
-                <p className="text-sm font-black text-[color:var(--brand-900)]">Manual transfer</p>
-                <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                  {locale === "en" ? "Simple checkout, no account needed." : "Checkout simpel tanpa akun."}
-                </p>
-              </div>
-            </div>
           </div>
 
-          <div className="mesh-card relative overflow-hidden rounded-[2.75rem] border border-[#f2c6c2] p-6 shadow-[0_30px_70px_rgba(185,30,30,0.12)]">
+          <div className="mesh-card relative overflow-hidden rounded-[2.9rem] border border-[#f2c6c2] p-6 shadow-[0_30px_70px_rgba(185,30,30,0.12)]">
             <div className="absolute -right-12 -top-10 h-36 w-36 rounded-full bg-[#ffd7cf]" />
             <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-[#ffe8bf]" />
             <div className="relative grid gap-4">
@@ -93,42 +71,67 @@ export default async function Home() {
                   />
                 </div>
                 <p className="text-center text-xs font-black uppercase tracking-[0.2em] text-[color:var(--brand-900)]">
-                  {locale === "en" ? "From the kitchen" : "Dari dapur kecil kami"}
+                  {locale === "en" ? "From our tiny kitchen" : "Dari dapur kecil kami"}
                 </p>
-                <p className="mt-3 text-center text-sm font-semibold text-[color:var(--ink-700)]">
-                  {locale === "en" ? store.settings.storyEn : store.settings.story}
+                <p className="mt-3 text-center text-sm font-semibold leading-7 text-[color:var(--ink-700)]">
+                  {locale === "en"
+                    ? settings.storyEn
+                    : settings.story}
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
-                {products.map((product) => (
-                  <div
-                    key={product.id}
-                    className={`rounded-[2rem] bg-gradient-to-br ${product.accent} p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]`}
-                  >
-                    <p className="text-sm font-semibold text-[color:var(--brand-900)]">
-                      {locale === "en" ? product.prepLabelEn : product.prepLabel}
-                    </p>
-                    <h2 className="mt-3 font-display text-2xl">
-                      {locale === "en" ? product.nameEn : product.name}
-                    </h2>
-                    <p className="mt-2 text-sm text-[color:var(--ink-700)]">
-                      {locale === "en"
-                        ? product.shortDescriptionEn
-                        : product.shortDescription}
-                    </p>
-                    <div className="mt-4 flex items-center justify-between">
-                      <span className="font-bold text-[color:var(--brand-900)]">
-                        {formatCurrency(product.price)}
-                      </span>
-                      <Link
-                        href={`/menu/${product.slug}`}
-                        className="rounded-full bg-white px-4 py-2 text-sm font-bold text-[color:var(--brand-900)]"
-                      >
-                        {locale === "en" ? "See details" : "Lihat detail"}
-                      </Link>
+                {products.map((product) => {
+                  const frozen = getVariant(product, "frozen");
+                  const fried = getVariant(product, "fried");
+
+                  return (
+                    <div
+                      key={product.id}
+                      className={`rounded-[2rem] bg-gradient-to-br ${product.accent} p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]`}
+                    >
+                      <p className="text-sm font-semibold text-[color:var(--brand-900)]">
+                        {locale === "en" ? product.prepLabelEn : product.prepLabel}
+                      </p>
+                      <h2 className="mt-3 font-display text-2xl">
+                        {locale === "en" ? product.nameEn : product.name}
+                      </h2>
+                      <p className="mt-2 text-sm text-[color:var(--ink-700)]">
+                        {locale === "en"
+                          ? product.shortDescriptionEn
+                          : product.shortDescription}
+                      </p>
+                      <div className="mt-4 grid gap-2 rounded-[1.35rem] bg-white/80 p-3 text-sm">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[color:var(--ink-700)]">Frozen</span>
+                          <span className="font-black text-[color:var(--brand-900)]">
+                            {formatCurrency(frozen?.price ?? getDisplayPrice(product))}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-[color:var(--ink-700)]">Fried</span>
+                          <span className="font-black text-[color:var(--brand-900)]">
+                            {formatCurrency(fried?.price ?? getDisplayPrice(product))}
+                          </span>
+                        </div>
+                        <p className="text-xs text-[color:var(--ink-700)]">
+                          1 qty = 3 pcs
+                        </p>
+                      </div>
+                      <div className="mt-4 flex items-center justify-between">
+                        <span className="font-bold text-[color:var(--brand-900)]">
+                          {locale === "en" ? "Starts from" : "Mulai dari"}{" "}
+                          {formatCurrency(getDisplayPrice(product))}
+                        </span>
+                        <Link
+                          href={`/menu/${product.slug}`}
+                          className="rounded-full bg-white px-4 py-2 text-sm font-bold text-[color:var(--brand-900)]"
+                        >
+                          {locale === "en" ? "See details" : "Lihat detail"}
+                        </Link>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -142,14 +145,14 @@ export default async function Home() {
             <ol className="mt-5 grid gap-4 text-sm text-[color:var(--ink-700)] sm:text-base">
               {[
                 locale === "en"
-                  ? "Choose your menu and preferred pre-order time."
-                  : "Pilih menu dan tentukan waktu pre-order yang kamu mau.",
+                  ? "Choose the menu and decide whether you want frozen packs or freshly fried packs."
+                  : "Pilih menu dan tentukan mau frozen pack atau freshly fried pack.",
                 locale === "en"
-                  ? "Transfer manually, then upload your payment proof."
-                  : "Transfer manual, lalu upload bukti transfer kamu.",
+                  ? "Set the quantity in packs. Every 1 qty always equals 3 pieces."
+                  : "Atur jumlah dalam pack. Setiap 1 qty selalu setara 3 pcs.",
                 locale === "en"
-                  ? "We verify the payment and confirm pickup or delivery by WhatsApp."
-                  : "Kami verifikasi pembayaran lalu konfirmasi pickup atau delivery via WhatsApp.",
+                  ? "Transfer manually, upload the payment proof, then keep your receipt for tracking."
+                  : "Transfer manual, upload bukti bayar, lalu simpan receipt untuk tracking.",
               ].map((step, index) => (
                 <li
                   key={step}
@@ -162,120 +165,135 @@ export default async function Home() {
           </div>
           <div className="surface-card rounded-[2.5rem] p-6 sm:p-8">
             <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
-              {locale === "en" ? "Made for little joyful moments" : "Cocok buat momen kecil yang manis"}
+              {locale === "en" ? "Made for cozy moments" : "Dibuat untuk momen hangat"}
             </p>
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <div className="rounded-[1.75rem] bg-[#fff3ee] px-5 py-5">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
-                  {locale === "en" ? "Pick-up" : "Pickup"}
+                  Frozen
                 </p>
                 <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
                   {locale === "en"
-                    ? "Best if you want the fastest handoff and zero delivery fee."
-                    : "Paling cocok kalau mau pengambilan cepat dan tanpa ongkir."}
+                    ? "Perfect if you want to stock comfort snacks and fry them whenever the craving hits."
+                    : "Cocok buat stok comfort snack di rumah lalu digoreng kapan pun mood ngemil datang."}
                 </p>
               </div>
               <div className="rounded-[1.75rem] bg-[#fff8ea] px-5 py-5">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
-                  Delivery
+                  Fried
                 </p>
                 <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
                   {locale === "en"
-                    ? "Delivery fee is discussed manually first, so the final cost can match the distance."
-                    : "Ongkir dibahas manual dulu, jadi biaya akhirnya bisa menyesuaikan jarak."}
+                    ? "Best if you want the ready-to-eat version right away for sharing or gifting."
+                    : "Paling enak kalau kamu mau versi siap makan untuk dibagi, dibawa, atau dihadiahkan."}
                 </p>
               </div>
               <div className="rounded-[1.75rem] bg-[#fff6f6] px-5 py-5 sm:col-span-2">
                 <p className="text-sm font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
-                  {locale === "en" ? "Payment" : "Pembayaran"}
+                  {locale === "en" ? "Tummy filled with joy" : "Tummy filled with joy"}
                 </p>
                 <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
                   {locale === "en"
-                    ? "Manual transfer with payment proof upload, so the order feels lightweight and fast."
-                    : "Transfer manual dengan upload bukti bayar, supaya proses order tetap ringan dan cepat."}
+                    ? "Every page is tuned to feel ringan, manis, dan gampang diikuti: pick your favorite pack, send the transfer, keep the receipt, lalu balik lagi kapan pun buat cek progresnya 😊🙌"
+                    : "Setiap bagiannya dibuat supaya terasa ringan, manis, dan gampang diikuti: pilih pack favoritmu, kirim transfer, simpan receipt, lalu balik lagi kapan pun buat cek progresnya 😊🙌"}
                 </p>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="menu" className="mt-10">
-          <div className="mb-5 flex items-center justify-between">
+        <section id="menu" className="mt-10 grid gap-6">
+          <div className="flex items-center justify-between">
             <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
-              {locale === "en" ? "Current menu" : "Menu hari ini"}
+              {locale === "en" ? "Current menu" : "Menu aktif"}
             </p>
-            <Link
-              href="/checkout"
-              className="btn-secondary px-4 py-2 text-sm font-bold"
-            >
+            <Link href="/checkout" className="btn-secondary px-4 py-2 text-sm font-bold">
               {locale === "en" ? "Order now" : "Pesan sekarang"}
             </Link>
           </div>
-          <div className="grid gap-4 md:grid-cols-2">
-            {products.map((product) => (
-              <article key={product.id} className="surface-card rounded-[2rem] p-5 sm:p-6">
-                <p className="text-sm font-semibold text-[color:var(--brand-900)]">
-                  {locale === "en" ? product.prepLabelEn : product.prepLabel}
-                </p>
-                <h3 className="mt-3 font-display text-3xl">
-                  {locale === "en" ? product.nameEn : product.name}
-                </h3>
-                <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
-                  {locale === "en" ? product.descriptionEn : product.description}
-                </p>
-                <div className="mt-6 flex items-center justify-between">
-                  <span className="text-lg font-black text-[color:var(--brand-900)]">
-                    {formatCurrency(product.price)}
-                  </span>
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/menu/${product.slug}`}
-                      className="btn-secondary px-4 py-2 text-sm font-bold"
-                    >
-                      Detail
-                    </Link>
-                    <Link
-                      href={`/checkout?product=${product.slug}`}
-                      className="btn-primary px-4 py-2 text-sm font-bold"
-                    >
-                      {locale === "en" ? "Add" : "Tambah"}
-                    </Link>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
 
-        <section className="surface-card mt-10 rounded-[2.5rem] p-6 sm:p-8">
-          <div className="grid gap-4 md:grid-cols-[0.8fr_1.2fr] md:items-center">
-            <div>
-              <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
-                {locale === "en" ? "Pre-order notes" : "Catatan pre-order"}
-              </p>
-              <h2 className="mt-4 font-display text-3xl">
-                {locale === "en"
-                  ? "Freshly arranged for small gatherings, office cravings, or surprise gifts."
-                  : "Diracik segar untuk kumpul kecil, bekal kantor, atau hadiah iseng yang manis."}
-              </h2>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="rounded-[1.75rem] bg-[#fff4ef] px-4 py-4 text-sm leading-7 text-[color:var(--ink-700)]">
-                {locale === "en"
-                  ? "Pre-order at least one day ahead for the smoothest handoff."
-                  : "Idealnya pre-order minimal satu hari sebelumnya biar semuanya rapi."}
-              </div>
-              <div className="rounded-[1.75rem] bg-[#fff8ea] px-4 py-4 text-sm leading-7 text-[color:var(--ink-700)]">
-                {locale === "en"
-                  ? "For delivery, we confirm the fee manually first so it stays fair for each area."
-                  : "Untuk delivery, ongkir dikonfirmasi manual dulu supaya tetap fair sesuai area."}
-              </div>
-              <div className="rounded-[1.75rem] bg-[#fff3f5] px-4 py-4 text-sm leading-7 text-[color:var(--ink-700)]">
-                {locale === "en"
-                  ? "After payment review, order updates continue through the order tracker page."
-                  : "Setelah pembayaran dicek, update order bisa dipantau lewat halaman tracking."}
-              </div>
-            </div>
+          <div className="grid gap-5">
+            {products.map((product, index) => {
+              const frozen = getVariant(product, "frozen");
+              const fried = getVariant(product, "fried");
+
+              return (
+                <article
+                  key={product.id}
+                  className="surface-card overflow-hidden rounded-[2.4rem] p-4 sm:p-5"
+                >
+                  <div className="grid gap-5 lg:grid-cols-[0.92fr_1.08fr] lg:items-center">
+                    <ProductGallery
+                      images={product.images}
+                      name={locale === "en" ? product.nameEn : product.name}
+                      priority={index === 0}
+                      showThumbnails={false}
+                    />
+
+                    <div className="grid gap-4">
+                      <div>
+                        <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+                          {locale === "en" ? product.prepLabelEn : product.prepLabel}
+                        </p>
+                        <h3 className="mt-2 font-display text-4xl">
+                          {locale === "en" ? product.nameEn : product.name}
+                        </h3>
+                        <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
+                          {locale === "en" ? product.descriptionEn : product.description}
+                        </p>
+                      </div>
+
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <div className="rounded-[1.6rem] bg-[linear-gradient(135deg,#fff7ef,#fff0e7)] p-4">
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+                            Frozen
+                          </p>
+                          <p className="mt-2 font-display text-3xl text-[color:var(--brand-900)]">
+                            {formatCurrency(frozen?.price ?? getDisplayPrice(product))}
+                          </p>
+                          <p className="mt-2 text-sm text-[color:var(--ink-700)]">
+                            {locale === "en"
+                              ? "Calm, freezer-friendly, and easy to save."
+                              : "Tenang, freezer-friendly, dan gampang disimpan."}
+                          </p>
+                        </div>
+                        <div className="rounded-[1.6rem] bg-[linear-gradient(135deg,#fff3ee,#fff0f7)] p-4">
+                          <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+                            Fried
+                          </p>
+                          <p className="mt-2 font-display text-3xl text-[color:var(--brand-900)]">
+                            {formatCurrency(fried?.price ?? getDisplayPrice(product))}
+                          </p>
+                          <p className="mt-2 text-sm text-[color:var(--ink-700)]">
+                            {locale === "en"
+                              ? "Warm, fragrant, and ready for direct snacking."
+                              : "Hangat, wangi, dan siap langsung dinikmati."}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3">
+                        <span className="rounded-full bg-[color:var(--paper-100)] px-4 py-2 text-sm font-bold text-[color:var(--brand-900)]">
+                          1 qty = 3 pcs
+                        </span>
+                        <Link
+                          href={`/menu/${product.slug}`}
+                          className="btn-secondary px-4 py-3 text-sm font-bold"
+                        >
+                          {locale === "en" ? "View gallery" : "Lihat gallery"}
+                        </Link>
+                        <Link
+                          href={`/checkout?product=${product.slug}`}
+                          className="btn-primary px-4 py-3 text-sm font-bold"
+                        >
+                          {locale === "en" ? "Order this menu" : "Pesan menu ini"}
+                        </Link>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
@@ -286,13 +304,13 @@ export default async function Home() {
             </p>
             <h2 className="mt-4 font-display text-3xl">
               {locale === "en"
-                ? "Already ordered? Reopen the receipt anytime."
-                : "Sudah pernah order? Receipt bisa dibuka lagi kapan saja."}
+                ? "Already ordered? Reopen the receipt whenever you need it."
+                : "Sudah pernah order? Receipt bisa dibuka lagi kapan pun kamu perlu."}
             </h2>
             <p className="mt-4 text-sm leading-7 text-[color:var(--ink-700)]">
               {locale === "en"
-                ? "Use the order code plus the customer name you entered during checkout. This helps keep progress tracking a little safer."
-                : "Pakai kode order plus nama pemesan yang kamu isi saat checkout. Ini bantu bikin tracking progres tetap agak lebih aman."}
+                ? "Use the order code plus the customer name you entered during checkout. This keeps progress tracking a little safer."
+                : "Pakai kode order plus nama pemesan yang kamu isi saat checkout. Ini bantu bikin tracking progres tetap sedikit lebih aman."}
             </p>
           </div>
 
@@ -314,25 +332,12 @@ export default async function Home() {
                 <label className="label" htmlFor="track-name">
                   {locale === "en" ? "Customer name" : "Nama pemesan"}
                 </label>
-                <input
-                  id="track-name"
-                  name="name"
-                  className="field"
-                  placeholder={
-                    locale === "en" ? "The same name used when ordering" : "Nama yang dipakai saat pesan"
-                  }
-                  required
-                />
+                <input id="track-name" name="name" className="field" required />
               </div>
             </div>
-            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <button type="submit" className="btn-primary px-6 py-4 font-bold">
-                {locale === "en" ? "Open tracking" : "Buka tracking"}
-              </button>
-              <Link href="/track" className="btn-secondary px-6 py-4 text-center font-bold">
-                {locale === "en" ? "Open tracking center" : "Ke pusat tracking"}
-              </Link>
-            </div>
+            <button type="submit" className="btn-primary mt-5 px-5 py-4 font-bold">
+              {locale === "en" ? "Open my receipt" : "Buka receipt saya"}
+            </button>
           </form>
         </section>
       </main>

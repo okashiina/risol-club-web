@@ -11,11 +11,11 @@ import {
   updateSupplierPriceAction,
   upsertRecipeItemAction,
 } from "@/app/seller/actions";
-import { readStore } from "@/lib/data-store";
 import { formatCurrency, getCostingOverview, getIngredientHistory } from "@/lib/reports";
+import { readSellerOperationsStore } from "@/lib/store-projections";
 
 export default async function SellerCostingPage() {
-  const store = await readStore();
+  const store = await readSellerOperationsStore();
   const costingOverview = getCostingOverview(store);
   const ingredientHistory = getIngredientHistory(store);
   const priceEntries = [...store.ingredientSupplierPrices].sort((a, b) => {

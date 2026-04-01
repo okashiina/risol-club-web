@@ -7,6 +7,30 @@ import {
 } from "@/lib/data-store";
 import { StoreData } from "@/lib/types";
 
+const BUSINESS_TIME_ZONE = "Asia/Jakarta";
+
+function getBusinessDateParts(value: Date | string) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  const formatter = new Intl.DateTimeFormat("en-CA", {
+    timeZone: BUSINESS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+
+  return {
+    year: parts.find((part) => part.type === "year")?.value ?? "0000",
+    month: parts.find((part) => part.type === "month")?.value ?? "01",
+    day: parts.find((part) => part.type === "day")?.value ?? "01",
+  };
+}
+
+function getBusinessDateKey(value: Date | string) {
+  const { year, month, day } = getBusinessDateParts(value);
+  return `${year}-${month}-${day}`;
+}
+
 export function formatCurrency(value: number) {
   return new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -33,9 +57,9 @@ export function getDashboardMetrics(store: StoreData) {
     (sum, order) => sum + summarizeOrderCost(store, order),
     0,
   );
-  const todayKey = new Date().toISOString().slice(0, 10);
+  const todayKey = getBusinessDateKey(new Date());
   const todayRevenue = completedOrActiveOrders
-    .filter((order) => order.createdAt.startsWith(todayKey))
+    .filter((order) => getBusinessDateKey(order.createdAt) === todayKey)
     .reduce((sum, order) => sum + order.total, 0);
 
   const orderVolume = new Map<string, number>();
@@ -140,18 +164,17 @@ export function getSalesBreakdown(store: StoreData) {
 
 export function getReportDailySeries(store: StoreData, days = 7) {
   const formatter = new Intl.DateTimeFormat("id-ID", {
+    timeZone: BUSINESS_TIME_ZONE,
     day: "2-digit",
     month: "short",
   });
   const today = new Date();
-  today.setHours(0, 0, 0, 0);
 
   return Array.from({ length: days }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (days - index - 1));
-    const key = date.toISOString().slice(0, 10);
+    const date = new Date(today.getTime() - (days - index - 1) * 24 * 60 * 60 * 1000);
+    const key = getBusinessDateKey(date);
     const orders = store.orders.filter(
-      (order) => order.status !== "cancelled" && order.createdAt.startsWith(key),
+      (order) => order.status !== "cancelled" && getBusinessDateKey(order.createdAt) === key,
     );
     const revenue = orders.reduce((sum, order) => sum + order.total, 0);
     const cogs = orders.reduce((sum, order) => sum + summarizeOrderCost(store, order), 0);
@@ -202,6 +225,7 @@ export function getReportHighlights(store: StoreData) {
 
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("id-ID", {
+    timeZone: BUSINESS_TIME_ZONE,
     dateStyle: "medium",
     timeStyle: "short",
   }).format(new Date(value));

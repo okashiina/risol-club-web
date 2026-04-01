@@ -2,7 +2,7 @@ import { CheckoutForm } from "@/components/checkout-form";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
 import { getDictionary, getLocale } from "@/lib/i18n";
-import { readStore } from "@/lib/data-store";
+import { readPublicCatalogData } from "@/lib/store-projections";
 
 export default async function CheckoutPage({
   searchParams,
@@ -11,7 +11,7 @@ export default async function CheckoutPage({
 }) {
   const locale = await getLocale();
   const text = getDictionary(locale);
-  const store = await readStore();
+  const { settings, products } = await readPublicCatalogData();
   const { product } = await searchParams;
 
   return (
@@ -34,11 +34,11 @@ export default async function CheckoutPage({
 
       <CheckoutForm
         locale={locale}
-        products={store.products.filter((item) => item.isActive)}
-        bankName={store.settings.bankName}
-        bankAccountNumber={store.settings.bankAccountNumber}
-        bankAccountHolder={store.settings.bankAccountHolder}
-        sellerWhatsappDisplay={store.settings.sellerWhatsappDisplay}
+        products={products}
+        bankName={settings.bankName}
+        bankAccountNumber={settings.bankAccountNumber}
+        bankAccountHolder={settings.bankAccountHolder}
+        sellerWhatsappDisplay={settings.sellerWhatsappDisplay}
         initialProductSlug={product}
       />
     </div>

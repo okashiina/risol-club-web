@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { ActionButton } from "@/components/action-button";
-import { getDashboardMetrics, formatCompactCurrency, formatDateTime } from "@/lib/reports";
-import { readStore, statusLabel } from "@/lib/data-store";
+import { formatCompactCurrency, formatDateTime } from "@/lib/reports";
+import { statusLabel } from "@/lib/data-store";
 import { markNotificationsReadAction, sellerLogoutAction } from "@/app/seller/actions";
+import { readSellerOverviewData } from "@/lib/store-projections";
 
 export default async function SellerOverviewPage() {
-  const store = await readStore();
-  const metrics = getDashboardMetrics(store);
-  const recentOrders = store.orders.slice(0, 5);
+  const { metrics, notifications, recentOrders } = await readSellerOverviewData();
 
   return (
     <div className="grid gap-6">
@@ -81,8 +80,8 @@ export default async function SellerOverviewPage() {
             </span>
           </div>
           <div className="mt-4 grid gap-3">
-            {store.notifications.length ? (
-              store.notifications.slice(0, 5).map((notification) => (
+            {notifications.length ? (
+              notifications.map((notification) => (
                 <div
                   key={notification.id}
                   className={`rounded-[1.5rem] border p-4 ${

@@ -1,6 +1,6 @@
 import { SellerShell } from "@/components/seller-shell";
 import { requireSellerSession } from "@/lib/auth";
-import { readStore } from "@/lib/data-store";
+import { readSellerUnreadNotificationCount } from "@/lib/store-projections";
 
 export default async function SellerDashboardLayout({
   children,
@@ -8,14 +8,10 @@ export default async function SellerDashboardLayout({
   children: React.ReactNode;
 }) {
   await requireSellerSession();
-  const store = await readStore();
+  const unreadNotifications = await readSellerUnreadNotificationCount();
 
   return (
-    <SellerShell
-      unreadNotifications={
-        store.notifications.filter((notification) => !notification.read).length
-      }
-    >
+    <SellerShell unreadNotifications={unreadNotifications}>
       {children}
     </SellerShell>
   );

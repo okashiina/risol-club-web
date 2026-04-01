@@ -1,20 +1,15 @@
-import { readStore, statusLabel } from "@/lib/data-store";
+import { statusLabel } from "@/lib/data-store";
+import { RevenuePulseChart } from "@/components/revenue-pulse-chart";
 import {
   formatCompactCurrency,
   formatCurrency,
-  getReportDailySeries,
-  getReportHighlights,
-  getSalesBreakdown,
-  getStatusBreakdown,
 } from "@/lib/reports";
+import { readSellerReportsData } from "@/lib/store-projections";
 
 export default async function SellerReportsPage() {
-  const store = await readStore();
-  const metrics = getReportHighlights(store);
-  const sales = getSalesBreakdown(store);
-  const dailySeries = getReportDailySeries(store);
-  const statusBreakdown = getStatusBreakdown(store);
-  const maxDailyRevenue = Math.max(...dailySeries.map((item) => item.revenue), 1);
+  const { metrics, sales, dailySeries, statusBreakdown, activeOrderCount } =
+    await readSellerReportsData();
+  const maxStatusCount = Math.max(...statusBreakdown.map((item) => item.count), 1);
   const maxSalesRevenue = Math.max(...sales.map((item) => item.revenue), 1);
   const profitIsPositive = metrics.grossProfit >= 0;
 
@@ -23,8 +18,8 @@ export default async function SellerReportsPage() {
       <section className="surface-card rounded-[2rem] p-6">
         <h1 className="font-display text-4xl">Reports</h1>
         <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
-          Revenue, HPP, gross profit, margin, dan tren order dalam satu layar dengan
-          visual yang lebih gampang dibaca cepat.
+          Revenue, COGS, gross profit, margin, dan pulse 7 hari terakhir dalam visual
+          yang lebih tegas dan gampang dipindai cepat.
         </p>
       </section>
 
@@ -44,41 +39,41 @@ export default async function SellerReportsPage() {
         <div
           className={`surface-card rounded-[2rem] p-5 ${
             profitIsPositive
-              ? "border border-[#b9e2c7] bg-[linear-gradient(135deg,rgba(240,255,245,0.95),rgba(255,255,255,0.9))]"
-              : "border border-[#f5c8c3] bg-[linear-gradient(135deg,rgba(255,241,239,0.95),rgba(255,255,255,0.9))]"
+              ? "border border-[#b9e2c7] bg-[linear-gradient(135deg,rgba(240,255,245,0.98),rgba(255,255,255,0.9))]"
+              : "border border-[#f5c8c3] bg-[linear-gradient(135deg,rgba(255,241,239,0.98),rgba(255,255,255,0.9))]"
           }`}
         >
           <p className="text-sm text-[color:var(--ink-700)]">Gross profit</p>
           <p
             className={`mt-2 text-3xl font-black ${
-              profitIsPositive ? "text-[#147a3f]" : "text-[color:var(--brand-900)]"
+              profitIsPositive ? "text-[#147a3f]" : "text-[#b91c1c]"
             }`}
           >
             {formatCompactCurrency(metrics.grossProfit)}
           </p>
           <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-700)]">
-            {profitIsPositive ? "Profit sehat" : "Perlu dicek lagi"}
+            {profitIsPositive ? "Profit positif" : "Profit tertekan"}
           </p>
         </div>
         <div className="surface-card rounded-[2rem] p-5">
-          <p className="text-sm text-[color:var(--ink-700)]">Average order value</p>
+          <p className="text-sm text-[color:var(--ink-700)]">Margin</p>
           <p className="mt-2 text-3xl font-black text-[color:var(--brand-900)]">
-            {formatCompactCurrency(metrics.averageOrderValue)}
+            {(metrics.profitMargin * 100).toFixed(1)}%
           </p>
           <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-[color:var(--ink-700)]">
-            Margin {(metrics.profitMargin * 100).toFixed(1)}%
+            AOV {formatCompactCurrency(metrics.averageOrderValue)}
           </p>
         </div>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
         <div className="surface-card rounded-[2rem] p-6">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h2 className="font-display text-2xl">7-day revenue pulse</h2>
-              <p className="mt-2 text-sm text-[color:var(--ink-700)]">
-                Ketinggian bar mengikuti revenue harian, lalu profit hariannya ditulis di
-                bawah supaya cepat terbaca.
+              <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
+                Revenue dan profit tampil berdampingan per hari, jadi perubahan sehat atau
+                lesu bisa kebaca tanpa nebak-nebak.
               </p>
             </div>
             <div className="rounded-[1.5rem] bg-white px-4 py-3 text-right">
@@ -91,76 +86,65 @@ export default async function SellerReportsPage() {
             </div>
           </div>
 
-          <div className="mt-6 grid h-[20rem] grid-cols-7 items-end gap-3">
-            {dailySeries.map((item) => {
-              const barHeight = `${Math.max((item.revenue / maxDailyRevenue) * 100, item.revenue ? 18 : 6)}%`;
-              const profitPositive = item.profit >= 0;
-
-              return (
-                <div key={item.key} className="flex h-full flex-col justify-end">
-                  <div className="rounded-[1.5rem] bg-white px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]">
-                    <div
-                      className={`w-full rounded-[1.2rem] ${
-                        profitPositive
-                          ? "bg-[linear-gradient(180deg,#ffb8ad,#c42b23)]"
-                          : "bg-[linear-gradient(180deg,#f6d3cf,#d4574d)]"
-                      }`}
-                      style={{ height: barHeight }}
-                    />
-                  </div>
-                  <p className="mt-3 text-center text-xs font-black uppercase tracking-[0.12em] text-[color:var(--ink-700)]">
-                    {item.label}
-                  </p>
-                  <p className="mt-1 text-center text-xs font-semibold text-[color:var(--brand-900)]">
-                    {formatCompactCurrency(item.revenue)}
-                  </p>
-                  <p
-                    className={`mt-1 text-center text-[11px] font-semibold ${
-                      profitPositive ? "text-[#147a3f]" : "text-[color:var(--brand-900)]"
-                    }`}
-                  >
-                    Profit {formatCompactCurrency(item.profit)}
-                  </p>
-                </div>
-              );
-            })}
+          <div className="mt-6">
+            <RevenuePulseChart series={dailySeries} />
           </div>
         </div>
 
         <div className="surface-card rounded-[2rem] p-6">
-          <h2 className="font-display text-2xl">Order status mix</h2>
-          <div className="mt-4 grid gap-3">
-            {statusBreakdown.map((item) => {
-              const width = `${
-                Math.max(
-                  (item.count / Math.max(...statusBreakdown.map((entry) => entry.count), 1)) *
-                    100,
-                  item.count ? 14 : 0,
-                )
-              }%`;
-
-              return (
-                <div key={item.status} className="rounded-[1.5rem] bg-white p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <p className="font-bold text-[color:var(--brand-900)]">
-                        {statusLabel(item.status as Parameters<typeof statusLabel>[0])}
-                      </p>
-                      <p className="text-xs text-[color:var(--ink-700)]">{item.label}</p>
-                    </div>
-                    <span className="text-xl font-black text-[color:var(--brand-900)]">
-                      {item.count}
-                    </span>
-                  </div>
-                  <div className="mt-3 h-3 overflow-hidden rounded-full bg-[color:var(--paper-100)]">
-                    <div
-                      className="h-full rounded-full bg-[linear-gradient(90deg,#f7b5ad,#b91e1e)]"
-                      style={{ width }}
-                    />
-                  </div>
+          <h2 className="font-display text-2xl">Business mix</h2>
+          <div className="mt-4 grid gap-4">
+            <div className="rounded-[1.7rem] bg-white p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+                Revenue vs profit
+              </p>
+              <div className="mt-3 grid gap-2 text-sm text-[color:var(--ink-700)]">
+                <div className="flex items-center justify-between">
+                  <span>Total revenue</span>
+                  <span className="font-black text-[color:var(--brand-900)]">
+                    {formatCurrency(metrics.revenue)}
+                  </span>
                 </div>
-              );
-            })}
+                <div className="flex items-center justify-between">
+                  <span>Total COGS</span>
+                  <span className="font-black text-[color:var(--brand-900)]">
+                    {formatCurrency(metrics.cogs)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span>Gross profit</span>
+                  <span className={`font-black ${profitIsPositive ? "text-[#147a3f]" : "text-[#b91c1c]"}`}>
+                    {formatCurrency(metrics.grossProfit)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="rounded-[1.7rem] bg-white p-4">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+                Status mix
+              </p>
+              <div className="mt-4 grid gap-3">
+                {statusBreakdown.map((item) => (
+                  <div key={item.status}>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-semibold text-[color:var(--ink-700)]">
+                        {statusLabel(item.status as Parameters<typeof statusLabel>[0])}
+                      </span>
+                      <span className="font-black text-[color:var(--brand-900)]">
+                        {item.count}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-3 overflow-hidden rounded-full bg-[color:var(--paper-100)]">
+                      <div
+                        className="h-full rounded-full bg-[linear-gradient(90deg,#f7b5ad,#b91e1e)]"
+                        style={{ width: `${Math.max((item.count / maxStatusCount) * 100, item.count ? 12 : 0)}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -168,23 +152,23 @@ export default async function SellerReportsPage() {
       <section className="surface-card rounded-[2rem] p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h2 className="font-display text-2xl">Sales by product</h2>
+            <h2 className="font-display text-2xl">Revenue and profit by menu</h2>
             <p className="mt-2 text-sm text-[color:var(--ink-700)]">
-              Revenue, COGS, dan profit per menu dengan progress bar biar cepat kebaca
-              menu mana yang paling sehat.
+              Menu mana yang paling kuat sekarang bisa terbaca dari revenue, COGS, dan
+              profit tanpa perlu bongkar angka satu-satu.
             </p>
           </div>
           <div className="rounded-[1.5rem] bg-white px-4 py-3 text-sm text-[color:var(--ink-700)]">
             <span className="font-semibold">Total active orders:</span>{" "}
             <span className="font-black text-[color:var(--brand-900)]">
-              {store.orders.filter((order) => order.status !== "cancelled").length}
+              {activeOrderCount}
             </span>
           </div>
         </div>
 
         <div className="mt-5 grid gap-3">
           {sales.map((item) => {
-            const revenueWidth = `${(item.revenue / maxSalesRevenue) * 100}%`;
+            const revenueWidth = `${Math.max((item.revenue / maxSalesRevenue) * 100, item.revenue ? 14 : 0)}%`;
             const profitPositive = item.grossProfit >= 0;
 
             return (
@@ -195,7 +179,7 @@ export default async function SellerReportsPage() {
                       {item.product.name}
                     </p>
                     <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                      Sold quantity: {item.quantity}
+                      Sold quantity: {item.quantity} pack
                     </p>
                     <div className="mt-4 h-3 overflow-hidden rounded-full bg-[color:var(--paper-100)]">
                       <div
@@ -210,7 +194,7 @@ export default async function SellerReportsPage() {
                     <span>COGS {formatCurrency(item.cogs)}</span>
                     <span
                       className={`font-black ${
-                        profitPositive ? "text-[#147a3f]" : "text-[color:var(--brand-900)]"
+                        profitPositive ? "text-[#147a3f]" : "text-[#b91c1c]"
                       }`}
                     >
                       Profit {formatCurrency(item.grossProfit)}

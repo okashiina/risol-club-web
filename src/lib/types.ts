@@ -1,6 +1,7 @@
 export type Locale = "id" | "en";
 
 export type FulfillmentMethod = "pickup" | "delivery";
+export type ProductVariantType = "frozen" | "fried";
 
 export type OrderStatus =
   | "pending_payment"
@@ -78,8 +79,25 @@ export type Product = {
   accent: string;
   prepLabel: string;
   prepLabelEn: string;
+  packSize: number;
+  variants: ProductVariant[];
+  images: ProductImage[];
   createdAt: string;
   updatedAt: string;
+};
+
+export type ProductVariant = {
+  type: ProductVariantType;
+  label: string;
+  price: number;
+  isActive: boolean;
+};
+
+export type ProductImage = {
+  id: string;
+  url: string;
+  alt: string;
+  position: number;
 };
 
 export type ProductStock = {
@@ -92,7 +110,10 @@ export type ProductStock = {
 export type OrderItem = {
   productId: string;
   productName: string;
+  variantType?: ProductVariantType;
+  variantLabel: string;
   quantity: number;
+  pieceCount: number;
   unitPrice: number;
   costSnapshot: number;
 };
@@ -107,6 +128,7 @@ export type PaymentProof = {
 export type Order = {
   id: string;
   code: string;
+  source: "web" | "seller_manual";
   locale: Locale;
   customerName: string;
   customerWhatsapp: string;
