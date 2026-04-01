@@ -12,6 +12,8 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
 const STORE_ROW_ID = "primary";
 const STORE_LOCK_KEY = 9_513_469;
+const LEGACY_BANK_ACCOUNT_NUMBER = "60505842655";
+const DEFAULT_BANK_ACCOUNT_NUMBER = "6050584265";
 const LEGACY_SELLER_WHATSAPP = "6285159134699";
 const LEGACY_SELLER_WHATSAPP_DISPLAY = "085159134699";
 const DEFAULT_SELLER_WHATSAPP = "6285183151407";
@@ -25,6 +27,10 @@ function deepClone<T>(value: T): T {
 }
 
 function normalizeStoreData(store: StoreData) {
+  if (store.settings.bankAccountNumber === LEGACY_BANK_ACCOUNT_NUMBER) {
+    store.settings.bankAccountNumber = DEFAULT_BANK_ACCOUNT_NUMBER;
+  }
+
   if (store.settings.sellerWhatsapp === LEGACY_SELLER_WHATSAPP) {
     store.settings.sellerWhatsapp = DEFAULT_SELLER_WHATSAPP;
   }

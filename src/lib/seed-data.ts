@@ -14,7 +14,7 @@ export const seedData: StoreData = {
     pickupAddressEn:
       "Pickup point details will be confirmed via WhatsApp after payment verification.",
     bankName: "BCA",
-    bankAccountNumber: "60505842655",
+    bankAccountNumber: "6050584265",
     bankAccountHolder: "Lubna Aqila",
     sellerWhatsapp: "6285183151407",
     sellerWhatsappDisplay: "085183151407",
