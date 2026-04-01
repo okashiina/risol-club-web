@@ -15,6 +15,7 @@ import {
 } from "@/lib/catalog";
 import {
   calculateProductCost,
+  readStore,
   getProductStock,
   getRecipeForProduct,
   isSalesStatus,
@@ -22,6 +23,7 @@ import {
   nowIso,
   writeStore,
 } from "@/lib/data-store";
+import { getPaymentProofHref, isBlobPaymentProof } from "@/lib/payment-proof";
 import { Order, OrderStatus, Product, StoreData } from "@/lib/types";
 
 function textValue(formData: FormData, key: string) {
@@ -56,19 +58,51 @@ function makeOrderCode(orderCount: number) {
   return `RC-${day}${month}-${String(orderCount + 1).padStart(3, "0")}`;
 }
 
-async function fileToPaymentProofPayload(file: File | FormDataEntryValue | null) {
+async function uploadPaymentProof(
+  file: File,
+  orderCode: string,
+) {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
+  const pathname = `payment-proofs/${orderCode}/${Date.now()}-${crypto.randomUUID().slice(0, 6)}.${extension}`;
+  const result = await put(pathname, file, {
+    access: "public",
+    addRandomSuffix: true,
+    contentType: file.type || "application/octet-stream",
+  });
+
+  return result.url;
+}
+
+async function fileToPaymentProofPayload(
+  file: File | FormDataEntryValue | null,
+  orderCode: string,
+) {
   if (!(file instanceof File) || file.size <= 0) {
     return undefined;
   }
 
   const mimeType = file.type || "application/octet-stream";
+  const uploadedAt = nowIso();
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const url = await uploadPaymentProof(file, orderCode);
+
+    return {
+      fileName: file.name,
+      mimeType,
+      url,
+      uploadedAt,
+    };
+  }
+
   const buffer = Buffer.from(await file.arrayBuffer());
 
   return {
     fileName: file.name,
     mimeType,
+    url: `data:${mimeType};base64,${buffer.toString("base64")}`,
     dataUrl: `data:${mimeType};base64,${buffer.toString("base64")}`,
-    uploadedAt: nowIso(),
+    uploadedAt,
   };
 }
 
@@ -268,7 +302,9 @@ export async function createManualOrderAction(formData: FormData) {
     quantity: number;
   }>;
 
-  const paymentPayload = await fileToPaymentProofPayload(paymentProof);
+  const storeSnapshot = await readStore();
+  const nextCode = makeOrderCode(storeSnapshot.orders.length);
+  const paymentPayload = await fileToPaymentProofPayload(paymentProof, nextCode);
   let createdCode = "";
 
   await writeStore((store) => {
@@ -313,7 +349,7 @@ export async function createManualOrderAction(formData: FormData) {
       0,
     );
     const deliveryFee = 0;
-    const code = makeOrderCode(store.orders.length);
+    const code = nextCode;
     const createdAt = nowIso();
 
     const order: Order = {
@@ -382,7 +418,12 @@ export async function createManualOrderAction(formData: FormData) {
 export async function editOrderAction(formData: FormData) {
   const orderId = textValue(formData, "orderId");
   const paymentProof = formData.get("paymentProof");
-  const paymentPayload = await fileToPaymentProofPayload(paymentProof);
+  const storeSnapshot = await readStore();
+  const snapshotOrder = storeSnapshot.orders.find((item) => item.id === orderId);
+  const paymentPayload = snapshotOrder
+    ? await fileToPaymentProofPayload(paymentProof, snapshotOrder.code)
+    : undefined;
+  const previousProofHref = getPaymentProofHref(snapshotOrder?.paymentProof);
   let updatedCode = "";
 
   await writeStore((store) => {
@@ -464,6 +505,14 @@ export async function editOrderAction(formData: FormData) {
   revalidateSeller();
   if (updatedCode) {
     revalidateOrderArtifacts(updatedCode);
+  }
+
+  if (paymentPayload && previousProofHref && isBlobPaymentProof(previousProofHref)) {
+    try {
+      await del(previousProofHref);
+    } catch {
+      // Keep UI resilient even when blob cleanup fails.
+    }
   }
 }
 

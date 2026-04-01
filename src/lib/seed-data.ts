@@ -303,6 +303,8 @@ export const seedData: StoreData = {
       paymentProof: {
         fileName: "sample-proof.jpg",
         mimeType: "image/jpeg",
+        url:
+          "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MDAiIGhlaWdodD0iMzAwIj48cmVjdCB3aWR0aD0iNTAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZlZjJmMiIvPjx0ZXh0IHg9IjUwIiB5PSIxNTAiIGZvbnQtc2l6ZT0iMzAiIGZpbGw9IiNiOTFlMWUiPkJ1a3RpIHRyYW5zZmVyIHNhbXBsZTwvdGV4dD48L3N2Zz4=",
         dataUrl:
           "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI1MDAiIGhlaWdodD0iMzAwIj48cmVjdCB3aWR0aD0iNTAwIiBoZWlnaHQ9IjMwMCIgZmlsbD0iI2ZlZjJmMiIvPjx0ZXh0IHg9IjUwIiB5PSIxNTAiIGZvbnQtc2l6ZT0iMzAiIGZpbGw9IiNiOTFlMWUiPkJ1a3RpIHRyYW5zZmVyIHNhbXBsZTwvdGV4dD48L3N2Zz4=",
         uploadedAt: now,

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 import { getPieceCount, getVariant } from "@/lib/catalog";
 import {
   calculateProductCost,
@@ -14,6 +15,45 @@ function makeOrderCode(orderCount: number) {
   const day = String(date.getDate()).padStart(2, "0");
   const month = String(date.getMonth() + 1).padStart(2, "0");
   return `RC-${day}${month}-${String(orderCount + 1).padStart(3, "0")}`;
+}
+
+async function fileToPaymentProofPayload(
+  file: File | FormDataEntryValue | null,
+  orderCode: string,
+) {
+  if (!(file instanceof File) || file.size <= 0) {
+    return undefined;
+  }
+
+  const mimeType = file.type || "application/octet-stream";
+  const uploadedAt = nowIso();
+
+  if (process.env.BLOB_READ_WRITE_TOKEN) {
+    const extension = file.name.split(".").pop()?.toLowerCase() || "bin";
+    const pathname = `payment-proofs/${orderCode}/${Date.now()}-${crypto.randomUUID().slice(0, 6)}.${extension}`;
+    const result = await put(pathname, file, {
+      access: "public",
+      addRandomSuffix: true,
+      contentType: mimeType,
+    });
+
+    return {
+      fileName: file.name,
+      mimeType,
+      url: result.url,
+      uploadedAt,
+    };
+  }
+
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  return {
+    fileName: file.name,
+    mimeType,
+    url: `data:${mimeType};base64,${buffer.toString("base64")}`,
+    dataUrl: `data:${mimeType};base64,${buffer.toString("base64")}`,
+    uploadedAt,
+  };
 }
 
 export async function POST(request: Request) {
@@ -57,24 +97,8 @@ export async function POST(request: Request) {
     );
   }
 
-  let paymentPayload:
-    | {
-        fileName: string;
-        mimeType: string;
-        dataUrl: string;
-        uploadedAt: string;
-      }
-    | undefined;
-
-  if (paymentProof instanceof File && paymentProof.size > 0) {
-    const buffer = Buffer.from(await paymentProof.arrayBuffer());
-    paymentPayload = {
-      fileName: paymentProof.name,
-      mimeType: paymentProof.type || "application/octet-stream",
-      dataUrl: `data:${paymentProof.type || "application/octet-stream"};base64,${buffer.toString("base64")}`,
-      uploadedAt: nowIso(),
-    };
-  }
+  const code = makeOrderCode(store.orders.length);
+  const paymentPayload = await fileToPaymentProofPayload(paymentProof, code);
 
   if (!paymentPayload) {
     return NextResponse.json(
@@ -96,7 +120,6 @@ export async function POST(request: Request) {
     fulfillmentMethod === "delivery" ? "delivery" : "pickup";
   const deliveryFee = 0;
   const total = subtotal + deliveryFee;
-  const code = makeOrderCode(store.orders.length);
 
   await writeStore((current) => {
     current.orders.unshift({

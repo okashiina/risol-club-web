@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
+import { PaymentProofPreview } from "@/components/payment-proof-preview";
 import {
   getOrderByCode,
   orderMatchesCustomerName,
@@ -9,48 +10,8 @@ import {
   statusLabel,
 } from "@/lib/data-store";
 import { getLocale } from "@/lib/i18n";
+import { getPaymentProofHref } from "@/lib/payment-proof";
 import { formatCurrency, formatDateTime } from "@/lib/reports";
-
-function PaymentProofPreview({
-  dataUrl,
-  mimeType,
-  alt,
-}: {
-  dataUrl: string;
-  mimeType: string;
-  alt: string;
-}) {
-  const showImagePreview = mimeType.startsWith("image/");
-  const showPdfPreview =
-    mimeType === "application/pdf" || mimeType.endsWith("/pdf");
-
-  if (showImagePreview) {
-    return (
-      <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-[#fffaf7]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={dataUrl}
-          alt={alt}
-          className="block max-h-[28rem] w-full object-contain"
-        />
-      </div>
-    );
-  }
-
-  if (showPdfPreview) {
-    return (
-      <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white">
-        <object data={dataUrl} type={mimeType} className="h-[28rem] w-full">
-          <p className="p-4 text-sm text-[color:var(--ink-700)]">
-            Preview PDF belum tersedia di browser ini.
-          </p>
-        </object>
-      </div>
-    );
-  }
-
-  return null;
-}
 
 export default async function OrderTrackingPage({
   params,
@@ -73,7 +34,7 @@ export default async function OrderTrackingPage({
   const hasAccess =
     providedName.length > 0 && orderMatchesCustomerName(order, providedName);
   const paymentProofLabel =
-    order.paymentProof?.fileName.startsWith("data:")
+    !order.paymentProof?.fileName || order.paymentProof.fileName.startsWith("data:")
       ? locale === "en"
         ? "Payment proof file"
         : "File bukti transfer"
@@ -319,7 +280,7 @@ export default async function OrderTrackingPage({
                 {locale === "en" ? "Payment proof" : "Bukti pembayaran"}
               </h3>
               <PaymentProofPreview
-                dataUrl={order.paymentProof.dataUrl}
+                href={getPaymentProofHref(order.paymentProof)}
                 mimeType={order.paymentProof.mimeType}
                 alt={
                   locale === "en"
@@ -329,7 +290,7 @@ export default async function OrderTrackingPage({
               />
               <div className="mt-4 flex flex-col gap-3 sm:flex-row">
                 <a
-                  href={order.paymentProof.dataUrl}
+                  href={getPaymentProofHref(order.paymentProof)}
                   download={order.paymentProof.fileName}
                   className="btn-primary px-4 py-3 text-center text-sm font-bold"
                 >

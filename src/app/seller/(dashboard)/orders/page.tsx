@@ -1,12 +1,10 @@
 import { ActionButton } from "@/components/action-button";
-import { DangerSubmitButton } from "@/components/danger-submit-button";
+import { PaymentProofPreview } from "@/components/payment-proof-preview";
 import { SellerManualOrderForm } from "@/components/seller-manual-order-form";
-import {
-  deleteOrderAction,
-  editOrderAction,
-  updateOrderStatusAction,
-} from "@/app/seller/actions";
+import { SellerOrderActions } from "@/components/seller-order-actions";
+import { updateOrderStatusAction } from "@/app/seller/actions";
 import { statusLabel } from "@/lib/data-store";
+import { getPaymentProofHref } from "@/lib/payment-proof";
 import { formatCurrency, formatDateTime } from "@/lib/reports";
 import { readSellerOrdersData } from "@/lib/store-projections";
 
@@ -42,43 +40,6 @@ function buildWhatsappHelperMessage(order: Awaited<ReturnType<typeof readSellerO
   };
 
   return `Halo ${order.customerName}, mau kasih kabar hangat buat order ${order.code} ya. Saat ini ${statusCopy[order.status]} Kalau ada catatan kecil atau perubahan, tinggal balas chat ini aja.`;
-}
-
-function PaymentProofPreview({
-  dataUrl,
-  mimeType,
-  alt,
-}: {
-  dataUrl: string;
-  mimeType: string;
-  alt: string;
-}) {
-  const showImagePreview = mimeType.startsWith("image/");
-  const showPdfPreview =
-    mimeType === "application/pdf" || mimeType.endsWith("/pdf");
-
-  if (showImagePreview) {
-    return (
-      <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-[#fffaf7]">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={dataUrl} alt={alt} className="block max-h-[24rem] w-full object-contain" />
-      </div>
-    );
-  }
-
-  if (showPdfPreview) {
-    return (
-      <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white">
-        <object data={dataUrl} type={mimeType} className="h-[24rem] w-full">
-          <p className="p-4 text-sm text-[color:var(--ink-700)]">
-            Preview PDF belum tersedia di browser ini.
-          </p>
-        </object>
-      </div>
-    );
-  }
-
-  return null;
 }
 
 export default async function SellerOrdersPage() {
@@ -136,7 +97,7 @@ export default async function SellerOrdersPage() {
                   </a>
                   {order.paymentProof ? (
                     <a
-                      href={order.paymentProof.dataUrl}
+                      href={getPaymentProofHref(order.paymentProof)}
                       download={order.paymentProof.fileName}
                       className="rounded-full border border-[color:var(--paper-300)] px-4 py-3 text-center text-sm font-bold text-[color:var(--brand-900)]"
                     >
@@ -190,7 +151,7 @@ export default async function SellerOrdersPage() {
                           </p>
                         </div>
                         <a
-                          href={order.paymentProof.dataUrl}
+                          href={getPaymentProofHref(order.paymentProof)}
                           download={order.paymentProof.fileName}
                           className="btn-secondary px-4 py-3 text-center text-sm font-bold"
                         >
@@ -198,7 +159,7 @@ export default async function SellerOrdersPage() {
                         </a>
                       </div>
                       <PaymentProofPreview
-                        dataUrl={order.paymentProof.dataUrl}
+                        href={getPaymentProofHref(order.paymentProof)}
                         mimeType={order.paymentProof.mimeType}
                         alt={`Bukti bayar ${order.code}`}
                       />
@@ -211,78 +172,7 @@ export default async function SellerOrdersPage() {
                 </div>
 
                 <div className="grid gap-4">
-                  <form action={editOrderAction} className="rounded-[1.5rem] bg-white p-4">
-                    <input type="hidden" name="orderId" value={order.id} />
-                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
-                      Edit order
-                    </p>
-                    <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
-                      Seller hanya bisa menambah qty dari item yang sudah ada, lalu upload
-                      atau ganti bukti transfer kalau customer baru kirim belakangan.
-                    </p>
-
-                    <div className="mt-4 grid gap-3">
-                      {order.items.map((item) => {
-                        const itemKey = `${item.productId}:${item.variantType ?? "legacy"}`;
-                        const disableIncrease = ["completed", "cancelled"].includes(order.status);
-
-                        return (
-                          <div
-                            key={`${order.id}-${itemKey}`}
-                            className="rounded-[1.25rem] border border-[color:var(--paper-300)] bg-[color:var(--paper-100)] p-3"
-                          >
-                            <div className="flex items-start justify-between gap-4">
-                              <div>
-                                <p className="text-sm font-bold text-[color:var(--brand-900)]">
-                                  {item.productName}
-                                </p>
-                                <p className="text-xs text-[color:var(--ink-700)]">
-                                  {item.variantLabel} • sekarang {item.quantity} qty • {item.pieceCount} pcs
-                                </p>
-                              </div>
-                              <div className="w-24">
-                                <label className="label text-xs" htmlFor={`increase-${order.id}-${itemKey}`}>
-                                  Tambah qty
-                                </label>
-                                <input
-                                  id={`increase-${order.id}-${itemKey}`}
-                                  name={`increase:${item.productId}:${item.variantType ?? "legacy"}`}
-                                  type="number"
-                                  min={0}
-                                  defaultValue={0}
-                                  disabled={disableIncrease}
-                                  className="field disabled:cursor-not-allowed disabled:opacity-60"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-
-                    <div className="mt-4">
-                      <label className="label" htmlFor={`proof-${order.id}`}>
-                        {order.paymentProof ? "Ganti / upload ulang bukti transfer" : "Tambah bukti transfer"}
-                      </label>
-                      <input
-                        id={`proof-${order.id}`}
-                        name="paymentProof"
-                        type="file"
-                        accept="image/*,application/pdf"
-                        className="field file:mr-4 file:rounded-full file:border-0 file:bg-[color:var(--brand-900)] file:px-4 file:py-2 file:font-semibold file:text-white"
-                      />
-                    </div>
-
-                    {["completed", "cancelled"].includes(order.status) ? (
-                      <p className="mt-3 text-xs text-[color:var(--ink-700)]">
-                        Qty tidak bisa ditambah lagi karena order sudah {order.status === "completed" ? "completed" : "cancelled"}, tapi bukti transfer tetap boleh diperbarui bila perlu.
-                      </p>
-                    ) : null}
-
-                    <ActionButton className="mt-4 w-full rounded-full bg-[color:var(--brand-900)] px-4 py-3 font-bold text-white">
-                      Save order update
-                    </ActionButton>
-                  </form>
+                  <SellerOrderActions order={order} />
 
                   <form action={updateOrderStatusAction} className="rounded-[1.5rem] bg-white p-4">
                     <input type="hidden" name="orderId" value={order.id} />
@@ -304,23 +194,6 @@ export default async function SellerOrdersPage() {
                     <ActionButton className="mt-4 w-full rounded-full bg-[color:var(--brand-900)] px-4 py-3 font-bold text-white">
                       Save status
                     </ActionButton>
-                  </form>
-
-                  <form action={deleteOrderAction} className="rounded-[1.5rem] border border-[#efc2bc] bg-[#fff4f2] p-4">
-                    <input type="hidden" name="orderId" value={order.id} />
-                    <p className="text-sm font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
-                      Hapus order
-                    </p>
-                    <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
-                      Gunakan ini hanya untuk bersih-bersih dummy. Kalau lanjut, order ini akan
-                      terhapus permanen dari database dan tidak bisa dikembalikan lagi.
-                    </p>
-                    <DangerSubmitButton
-                      confirmMessage={`Order ${order.code} akan dihapus permanen dari database. Lanjutkan?`}
-                      className="mt-4 w-full rounded-full bg-[#b91c1c] px-4 py-3 text-sm font-bold text-white"
-                    >
-                      Delete order permanently
-                    </DangerSubmitButton>
                   </form>
                 </div>
               </div>

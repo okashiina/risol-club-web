@@ -121,7 +121,8 @@ export type OrderItem = {
 export type PaymentProof = {
   fileName: string;
   mimeType: string;
-  dataUrl: string;
+  url: string;
+  dataUrl?: string;
   uploadedAt: string;
 };
 

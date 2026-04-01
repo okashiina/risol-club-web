@@ -123,6 +123,12 @@ function normalizeStoreData(store: StoreData) {
   store.orders = store.orders.map((order) => ({
     ...order,
     source: order.source ?? "web",
+    paymentProof: order.paymentProof
+      ? {
+          ...order.paymentProof,
+          url: order.paymentProof.url || order.paymentProof.dataUrl || "",
+        }
+      : undefined,
     items: order.items.map((item) => {
       const product = productById.get(item.productId);
       const productPackSize = product ? getPackSize(product) : DEFAULT_PACK_SIZE;
