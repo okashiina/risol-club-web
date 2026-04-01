@@ -16,7 +16,7 @@ test("storefront stays public-facing and uses the requested branding", async ({ 
   await expect(page.locator("main")).not.toContainText(/seller/i);
   await expect(page.locator("link[rel='icon']").first()).toHaveAttribute(
     "href",
-    /logo-red-transparent\.png\?v=4/,
+    /logo-white-bg\.png\?v=1/,
   );
 
   const logoImage = page.getByAltText("Risol Club logo").first();
@@ -61,7 +61,7 @@ test("customer can place an order from checkout", async ({ page }) => {
   );
 
   await Promise.all([
-    page.waitForURL(/\/order\/RC-\d{4}-\d{3}$/),
+    page.waitForURL(/\/order\/RC-\d{4}-\d{3}\?name=Nadia$/),
     submitButton.click(),
   ]);
 
@@ -69,4 +69,5 @@ test("customer can place an order from checkout", async ({ page }) => {
     page.getByRole("heading", { name: /order kamu sudah masuk|thanks, your order is in/i }),
   ).toBeVisible();
   await expect(page.getByText(/payment review/i)).toBeVisible();
+  await expect(page.getByText(/simpan receipt ini/i)).toBeVisible();
 });

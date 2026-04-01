@@ -2,34 +2,82 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
-import { getOrderByCode, readStore, statusLabel } from "@/lib/data-store";
+import {
+  getOrderByCode,
+  orderMatchesCustomerName,
+  readStore,
+  statusLabel,
+} from "@/lib/data-store";
 import { getLocale } from "@/lib/i18n";
 import { formatCurrency, formatDateTime } from "@/lib/reports";
 
+function PaymentProofPreview({
+  dataUrl,
+  mimeType,
+  alt,
+}: {
+  dataUrl: string;
+  mimeType: string;
+  alt: string;
+}) {
+  const showImagePreview = mimeType.startsWith("image/");
+  const showPdfPreview =
+    mimeType === "application/pdf" || mimeType.endsWith("/pdf");
+
+  if (showImagePreview) {
+    return (
+      <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-[#fffaf7]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={dataUrl}
+          alt={alt}
+          className="block max-h-[28rem] w-full object-contain"
+        />
+      </div>
+    );
+  }
+
+  if (showPdfPreview) {
+    return (
+      <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white">
+        <object data={dataUrl} type={mimeType} className="h-[28rem] w-full">
+          <p className="p-4 text-sm text-[color:var(--ink-700)]">
+            Preview PDF belum tersedia di browser ini.
+          </p>
+        </object>
+      </div>
+    );
+  }
+
+  return null;
+}
+
 export default async function OrderTrackingPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ name?: string }>;
 }) {
   const locale = await getLocale();
   const store = await readStore();
   const { code } = await params;
+  const { name } = await searchParams;
   const order = getOrderByCode(store, code);
 
   if (!order) {
     notFound();
   }
 
+  const providedName = String(name ?? "").trim();
+  const hasAccess =
+    providedName.length > 0 && orderMatchesCustomerName(order, providedName);
   const paymentProofLabel =
     order.paymentProof?.fileName.startsWith("data:")
       ? locale === "en"
-        ? "Open payment proof"
-        : "Buka bukti transfer"
+        ? "Payment proof file"
+        : "File bukti transfer"
       : order.paymentProof?.fileName;
-  const showImagePreview = Boolean(order.paymentProof?.mimeType.startsWith("image/"));
-  const showPdfPreview =
-    order.paymentProof?.mimeType === "application/pdf" ||
-    order.paymentProof?.mimeType.endsWith("/pdf");
   const sellerWhatsapp = store.settings.sellerWhatsapp;
   const sellerWhatsappDisplay = store.settings.sellerWhatsappDisplay;
   const deliveryWhatsappMessage =
@@ -39,6 +87,81 @@ export default async function OrderTrackingPage({
   const deliveryWhatsappHref = `https://wa.me/${sellerWhatsapp}?text=${encodeURIComponent(
     deliveryWhatsappMessage,
   )}`;
+
+  if (!hasAccess) {
+    return (
+      <div className="page-shell safe-pt min-h-screen py-6">
+        <div className="flex items-center justify-between rounded-full bg-white/80 px-4 py-3 backdrop-blur">
+          <BrandLogo />
+          <LanguageToggle locale={locale} />
+        </div>
+
+        <section className="surface-card mx-auto mt-6 max-w-3xl rounded-[2.5rem] p-6 sm:p-8">
+          <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
+            {locale === "en" ? "Open your receipt" : "Buka receipt kamu"}
+          </p>
+          <h1 className="mt-4 font-display text-4xl">
+            {locale === "en"
+              ? "Use your order code and customer name to unlock the receipt."
+              : "Masukkan kode order dan nama pemesan untuk buka receipt ini."}
+          </h1>
+          <p className="mt-4 text-base leading-8 text-[color:var(--ink-700)]">
+            {locale === "en"
+              ? "This extra check helps keep order tracking a little safer, especially because order codes are sequential."
+              : "Check tambahan ini bantu bikin tracking order lebih aman, apalagi karena kode order sifatnya berurutan."}
+          </p>
+
+          <div className="mt-6 rounded-[1.75rem] bg-[color:var(--paper-100)] p-5">
+            <p className="text-sm text-[color:var(--ink-700)]">
+              {locale === "en" ? "Order code" : "Kode order"}
+            </p>
+            <p className="mt-2 text-2xl font-black text-[color:var(--brand-900)]">
+              {order.code}
+            </p>
+          </div>
+
+          <form action={`/order/${order.code}`} className="mt-6 grid gap-4">
+            <div>
+              <label className="label" htmlFor="customerName">
+                {locale === "en" ? "Customer name" : "Nama pemesan"}
+              </label>
+              <input
+                id="customerName"
+                name="name"
+                className="field"
+                defaultValue={providedName}
+                placeholder={
+                  locale === "en" ? "Type the same name used when ordering" : "Ketik nama yang dipakai saat pesan"
+                }
+                required
+              />
+            </div>
+
+            {providedName ? (
+              <p className="rounded-[1.4rem] bg-[#fff2ef] px-4 py-3 text-sm font-semibold text-[color:var(--brand-900)]">
+                {locale === "en"
+                  ? "The name does not match this order yet. Try the exact customer name used when ordering."
+                  : "Namanya belum cocok dengan order ini. Coba pakai nama pemesan yang sama persis saat checkout."}
+              </p>
+            ) : null}
+
+            <button type="submit" className="btn-primary px-5 py-4 font-bold">
+              {locale === "en" ? "Open my receipt" : "Buka receipt saya"}
+            </button>
+          </form>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Link href="/track" className="btn-secondary px-5 py-4 text-center font-bold">
+              {locale === "en" ? "Go to tracking center" : "Ke pusat tracking"}
+            </Link>
+            <Link href="/" className="btn-secondary px-5 py-4 text-center font-bold">
+              {locale === "en" ? "Back home" : "Kembali ke beranda"}
+            </Link>
+          </div>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="page-shell safe-pt min-h-screen py-6">
@@ -71,6 +194,7 @@ export default async function OrderTrackingPage({
               </p>
             </div>
           </div>
+
           <div className="mt-6 rounded-[1.75rem] border border-[color:var(--paper-300)] p-5">
             <p className="text-sm font-semibold text-[color:var(--ink-700)]">
               {locale === "en"
@@ -83,9 +207,23 @@ export default async function OrderTrackingPage({
             </p>
             {order.fulfillmentMethod === "delivery" && order.address ? (
               <p className="mt-2 text-sm text-[color:var(--ink-700)]">
-              {locale === "en" ? "Delivery to" : "Alamat delivery"}: {order.address}
+                {locale === "en" ? "Delivery to" : "Alamat delivery"}: {order.address}
               </p>
             ) : null}
+          </div>
+
+          <div className="mt-6 rounded-[1.9rem] border border-[#f2d5c4] bg-[linear-gradient(135deg,#fff8ef,#fff4e6)] p-5 shadow-[0_18px_40px_rgba(231,169,61,0.08)]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+              {locale === "en" ? "Save this receipt" : "Simpan receipt ini"}
+            </p>
+            <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
+              {locale === "en"
+                ? `Please keep your order code ${order.code} and customer name ${order.customerName}. You can use both later in the tracking center to reopen this receipt and monitor progress.`
+                : `Tolong simpan kode order ${order.code} dan nama pemesan ${order.customerName}. Nanti dua data ini bisa dipakai lagi di pusat tracking untuk buka receipt dan cek progres order.`}
+            </p>
+            <Link href="/track" className="btn-secondary mt-4 px-5 py-3 text-sm font-bold">
+              {locale === "en" ? "Open tracking center" : "Buka pusat tracking"}
+            </Link>
           </div>
 
           {order.fulfillmentMethod === "delivery" ? (
@@ -112,16 +250,10 @@ export default async function OrderTrackingPage({
           ) : null}
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/checkout"
-              className="btn-primary px-5 py-4 text-center font-bold"
-            >
+            <Link href="/checkout" className="btn-primary px-5 py-4 text-center font-bold">
               {locale === "en" ? "Create another order" : "Buat order baru"}
             </Link>
-            <Link
-              href="/"
-              className="btn-secondary px-5 py-4 text-center font-bold"
-            >
+            <Link href="/" className="btn-secondary px-5 py-4 text-center font-bold">
               {locale === "en" ? "Back home" : "Kembali ke beranda"}
             </Link>
           </div>
@@ -178,45 +310,34 @@ export default async function OrderTrackingPage({
               <h3 className="font-display text-xl">
                 {locale === "en" ? "Payment proof" : "Bukti pembayaran"}
               </h3>
-              {showImagePreview ? (
-                <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-[#fffaf7]">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={order.paymentProof.dataUrl}
-                    alt={
-                      locale === "en"
-                        ? `Payment proof for ${order.code}`
-                        : `Bukti transfer untuk ${order.code}`
-                    }
-                    className="block max-h-[28rem] w-full object-contain"
-                  />
-                </div>
-              ) : null}
-              {showPdfPreview ? (
-                <div className="mt-4 overflow-hidden rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white">
-                  <object
-                    data={order.paymentProof.dataUrl}
-                    type={order.paymentProof.mimeType}
-                    className="h-[28rem] w-full"
-                  >
-                    <p className="p-4 text-sm text-[color:var(--ink-700)]">
-                      {locale === "en"
-                        ? "PDF preview is not available in this browser."
-                        : "Preview PDF belum tersedia di browser ini."}
-                    </p>
-                  </object>
-                </div>
-              ) : null}
-              <a
-                href={order.paymentProof.dataUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-secondary mt-4 px-4 py-3 text-sm font-bold"
-              >
-                {locale === "en"
-                  ? `Open full file${paymentProofLabel ? ` - ${paymentProofLabel}` : ""}`
-                  : `Buka file penuh${paymentProofLabel ? ` - ${paymentProofLabel}` : ""}`}
-              </a>
+              <PaymentProofPreview
+                dataUrl={order.paymentProof.dataUrl}
+                mimeType={order.paymentProof.mimeType}
+                alt={
+                  locale === "en"
+                    ? `Payment proof for ${order.code}`
+                    : `Bukti transfer untuk ${order.code}`
+                }
+              />
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+                <a
+                  href={order.paymentProof.dataUrl}
+                  download={order.paymentProof.fileName}
+                  className="btn-primary px-4 py-3 text-center text-sm font-bold"
+                >
+                  {locale === "en" ? "Download proof" : "Download bukti bayar"}
+                </a>
+                <a
+                  href={order.paymentProof.dataUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary px-4 py-3 text-center text-sm font-bold"
+                >
+                  {locale === "en"
+                    ? `Open full file${paymentProofLabel ? ` - ${paymentProofLabel}` : ""}`
+                    : `Buka file penuh${paymentProofLabel ? ` - ${paymentProofLabel}` : ""}`}
+                </a>
+              </div>
             </div>
           ) : null}
         </aside>

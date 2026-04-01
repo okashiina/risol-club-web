@@ -91,6 +91,7 @@ export function CheckoutForm({
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const customerName = String(formData.get("customerName") ?? "").trim();
     formData.set("locale", locale);
     formData.set("fulfillmentMethod", fulfillment);
     formData.set("items", JSON.stringify(selectedItems));
@@ -111,7 +112,9 @@ export function CheckoutForm({
         return;
       }
 
-      router.push(`/order/${result.code}`);
+      router.push(
+        `/order/${result.code}?name=${encodeURIComponent(customerName)}`,
+      );
       router.refresh();
     });
   }

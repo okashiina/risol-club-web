@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -33,9 +34,6 @@ export default async function Home() {
       <main className="page-shell pb-16 pt-6">
         <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div className="hero-surface grain-overlay overflow-hidden rounded-[2.75rem] p-6 sm:p-8">
-            <div className="mb-6 inline-flex rounded-[1.9rem] border border-white/80 bg-white/75 p-2 shadow-[0_16px_40px_rgba(185,30,30,0.1)] backdrop-blur">
-              <BrandLogo />
-            </div>
             <p className="pill bg-white/90 text-[color:var(--brand-900)]">
               {locale === "en" ? "Handmade pre-order risol" : "Risol pre-order handmade"}
             </p>
@@ -87,10 +85,20 @@ export default async function Home() {
             <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-[#ffe8bf]" />
             <div className="relative grid gap-4">
               <div id="story" className="rounded-[2rem] bg-white p-5">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-[color:var(--brand-900)]">
+                <div className="relative mx-auto mb-4 h-28 w-28 sm:h-36 sm:w-36">
+                  <Image
+                    src="/brand/logo-red-transparent.png"
+                    alt="Risol Club decorative logo"
+                    fill
+                    sizes="144px"
+                    className="object-contain drop-shadow-[0_22px_36px_rgba(185,30,30,0.15)]"
+                    priority
+                  />
+                </div>
+                <p className="text-center text-xs font-black uppercase tracking-[0.2em] text-[color:var(--brand-900)]">
                   {locale === "en" ? "From the kitchen" : "Dari dapur kecil kami"}
                 </p>
-                <p className="text-sm font-semibold text-[color:var(--ink-700)]">
+                <p className="mt-3 text-center text-sm font-semibold text-[color:var(--ink-700)]">
                   {locale === "en" ? store.settings.storyEn : store.settings.story}
                 </p>
               </div>
@@ -272,6 +280,63 @@ export default async function Home() {
               </div>
             </div>
           </div>
+        </section>
+
+        <section className="mt-10 grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
+          <div className="surface-card rounded-[2.5rem] p-6 sm:p-8">
+            <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
+              {locale === "en" ? "Find your receipt again" : "Cari receipt lagi"}
+            </p>
+            <h2 className="mt-4 font-display text-3xl">
+              {locale === "en"
+                ? "Already ordered? Reopen the receipt anytime."
+                : "Sudah pernah order? Receipt bisa dibuka lagi kapan saja."}
+            </h2>
+            <p className="mt-4 text-sm leading-7 text-[color:var(--ink-700)]">
+              {locale === "en"
+                ? "Use the order code plus the customer name you entered during checkout. This helps keep progress tracking a little safer."
+                : "Pakai kode order plus nama pemesan yang kamu isi saat checkout. Ini bantu bikin tracking progres tetap agak lebih aman."}
+            </p>
+          </div>
+
+          <form action="/track" className="surface-card rounded-[2.5rem] p-6 sm:p-8">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="track-code">
+                  {locale === "en" ? "Order code" : "Kode order"}
+                </label>
+                <input
+                  id="track-code"
+                  name="code"
+                  className="field"
+                  placeholder="RC-0104-001"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label" htmlFor="track-name">
+                  {locale === "en" ? "Customer name" : "Nama pemesan"}
+                </label>
+                <input
+                  id="track-name"
+                  name="name"
+                  className="field"
+                  placeholder={
+                    locale === "en" ? "The same name used when ordering" : "Nama yang dipakai saat pesan"
+                  }
+                  required
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
+              <button type="submit" className="btn-primary px-6 py-4 font-bold">
+                {locale === "en" ? "Open tracking" : "Buka tracking"}
+              </button>
+              <Link href="/track" className="btn-secondary px-6 py-4 text-center font-bold">
+                {locale === "en" ? "Open tracking center" : "Ke pusat tracking"}
+              </Link>
+            </div>
+          </form>
         </section>
       </main>
     </div>

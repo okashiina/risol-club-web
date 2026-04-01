@@ -27,14 +27,9 @@ export default async function SellerLoginPage({
             Kelola order, stok, supplier, dan profit dalam satu tempat.
           </h1>
           <p className="mt-4 text-base leading-8 text-[color:var(--ink-700)]">
-            Dashboard ini khusus owner. Default credential development bisa diganti lewat
-            environment variable `SELLER_EMAIL` dan `SELLER_PASSWORD`.
+            Dashboard ini khusus owner untuk mengatur operasional harian Risol Club.
+            Masuk dengan akun seller yang sudah kamu pegang.
           </p>
-          <div className="mt-6 rounded-[2rem] bg-[color:var(--paper-100)] p-5 text-sm text-[color:var(--ink-700)]">
-            <p className="font-semibold text-[color:var(--brand-900)]">Default dev login</p>
-            <p className="mt-2">Email: owner@risolclub.local</p>
-            <p>Password: risolclub123</p>
-          </div>
         </section>
 
         <section className="surface-card rounded-[2.5rem] p-6 sm:p-8">

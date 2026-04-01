@@ -3,7 +3,7 @@ import "server-only";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { seedData } from "@/lib/seed-data";
-import { Ingredient, OrderStatus, Product, Recipe, StoreData } from "@/lib/types";
+import { Ingredient, Order, OrderStatus, Product, Recipe, StoreData } from "@/lib/types";
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
@@ -58,6 +58,17 @@ export function getProductBySlug(store: StoreData, slug: string) {
 export function getOrderByCode(store: StoreData, code: string) {
   return store.orders.find(
     (order) => order.code.toLowerCase() === code.toLowerCase(),
+  );
+}
+
+function normalizeComparableText(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+export function orderMatchesCustomerName(order: Order, customerName: string) {
+  return (
+    normalizeComparableText(order.customerName) ===
+    normalizeComparableText(customerName)
   );
 }
 

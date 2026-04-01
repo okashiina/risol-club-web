@@ -12,7 +12,7 @@ import {
   nowIso,
   writeStore,
 } from "@/lib/data-store";
-import { OrderStatus, Product } from "@/lib/types";
+import { OrderStatus, Product, StoreData } from "@/lib/types";
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -25,12 +25,32 @@ function numberValue(formData: FormData, key: string) {
 function revalidateSeller() {
   revalidatePath("/");
   revalidatePath("/checkout");
+  revalidatePath("/track");
   revalidatePath("/seller");
   revalidatePath("/seller/orders");
   revalidatePath("/seller/menu");
   revalidatePath("/seller/costing");
   revalidatePath("/seller/inventory");
   revalidatePath("/seller/reports");
+}
+
+function latestPriceForIngredient(store: StoreData, ingredientId: string) {
+  return store.ingredientSupplierPrices
+    .filter((price) => price.ingredientId === ingredientId)
+    .sort((a, b) => {
+      const effective = b.effectiveFrom.localeCompare(a.effectiveFrom);
+      return effective === 0 ? b.createdAt.localeCompare(a.createdAt) : effective;
+    })[0];
+}
+
+function syncIngredientActiveSupplier(store: StoreData, ingredientId: string) {
+  const ingredient = store.ingredients.find((item) => item.id === ingredientId);
+
+  if (!ingredient) {
+    return;
+  }
+
+  ingredient.activeSupplierId = latestPriceForIngredient(store, ingredientId)?.supplierId;
 }
 
 export async function sellerLoginAction(formData: FormData) {
@@ -213,6 +233,52 @@ export async function addIngredientAction(formData: FormData) {
   revalidateSeller();
 }
 
+export async function updateIngredientAction(formData: FormData) {
+  const ingredientId = textValue(formData, "ingredientId");
+
+  await writeStore((store) => {
+    const ingredient = store.ingredients.find((item) => item.id === ingredientId);
+
+    if (!ingredient) {
+      return store;
+    }
+
+    ingredient.name = textValue(formData, "name");
+    ingredient.unit = textValue(formData, "unit");
+    ingredient.stock = numberValue(formData, "stock");
+    ingredient.lowStockThreshold = numberValue(formData, "lowStockThreshold") || 1;
+    ingredient.activeSupplierId = textValue(formData, "activeSupplierId") || undefined;
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function deleteIngredientAction(formData: FormData) {
+  const ingredientId = textValue(formData, "ingredientId");
+
+  await writeStore((store) => {
+    store.ingredients = store.ingredients.filter((item) => item.id !== ingredientId);
+    store.ingredientSupplierPrices = store.ingredientSupplierPrices.filter(
+      (item) => item.ingredientId !== ingredientId,
+    );
+    store.inventoryMovements = store.inventoryMovements.filter(
+      (movement) =>
+        !(movement.itemType === "ingredient" && movement.itemId === ingredientId),
+    );
+    store.recipes = store.recipes.map((recipe) => ({
+      ...recipe,
+      items: recipe.items.filter((item) => item.ingredientId !== ingredientId),
+      updatedAt: nowIso(),
+    }));
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
 export async function addSupplierAction(formData: FormData) {
   await writeStore((store) => {
     store.suppliers.unshift({
@@ -223,6 +289,55 @@ export async function addSupplierAction(formData: FormData) {
       isActive: true,
       createdAt: nowIso(),
     });
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function updateSupplierAction(formData: FormData) {
+  const supplierId = textValue(formData, "supplierId");
+
+  await writeStore((store) => {
+    const supplier = store.suppliers.find((item) => item.id === supplierId);
+
+    if (!supplier) {
+      return store;
+    }
+
+    supplier.name = textValue(formData, "name");
+    supplier.contact = textValue(formData, "contact");
+    supplier.notes = textValue(formData, "notes") || undefined;
+    supplier.isActive = textValue(formData, "isActive") === "on";
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function deleteSupplierAction(formData: FormData) {
+  const supplierId = textValue(formData, "supplierId");
+
+  await writeStore((store) => {
+    store.suppliers = store.suppliers.filter((item) => item.id !== supplierId);
+    store.ingredientSupplierPrices = store.ingredientSupplierPrices.filter(
+      (item) => item.supplierId !== supplierId,
+    );
+    store.ingredients = store.ingredients.map((ingredient) => ({
+      ...ingredient,
+      activeSupplierId:
+        ingredient.activeSupplierId === supplierId
+          ? undefined
+          : ingredient.activeSupplierId,
+    }));
+
+    for (const ingredient of store.ingredients) {
+      if (!ingredient.activeSupplierId) {
+        syncIngredientActiveSupplier(store, ingredient.id);
+      }
+    }
 
     return store;
   });
@@ -249,6 +364,54 @@ export async function addSupplierPriceAction(formData: FormData) {
     if (ingredient) {
       ingredient.activeSupplierId = supplierId;
     }
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function updateSupplierPriceAction(formData: FormData) {
+  const priceId = textValue(formData, "priceId");
+
+  await writeStore((store) => {
+    const price = store.ingredientSupplierPrices.find((item) => item.id === priceId);
+
+    if (!price) {
+      return store;
+    }
+
+    const previousIngredientId = price.ingredientId;
+    price.ingredientId = textValue(formData, "ingredientId");
+    price.supplierId = textValue(formData, "supplierId");
+    price.pricePerUnit = numberValue(formData, "pricePerUnit");
+    price.effectiveFrom = textValue(formData, "effectiveFrom");
+    price.notes = textValue(formData, "notes") || undefined;
+
+    syncIngredientActiveSupplier(store, previousIngredientId);
+    syncIngredientActiveSupplier(store, price.ingredientId);
+
+    return store;
+  });
+
+  revalidateSeller();
+}
+
+export async function deleteSupplierPriceAction(formData: FormData) {
+  const priceId = textValue(formData, "priceId");
+
+  await writeStore((store) => {
+    const price = store.ingredientSupplierPrices.find((item) => item.id === priceId);
+
+    if (!price) {
+      return store;
+    }
+
+    const ingredientId = price.ingredientId;
+    store.ingredientSupplierPrices = store.ingredientSupplierPrices.filter(
+      (item) => item.id !== priceId,
+    );
+    syncIngredientActiveSupplier(store, ingredientId);
 
     return store;
   });

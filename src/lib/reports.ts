@@ -138,6 +138,68 @@ export function getSalesBreakdown(store: StoreData) {
   });
 }
 
+export function getReportDailySeries(store: StoreData, days = 7) {
+  const formatter = new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+  });
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (days - index - 1));
+    const key = date.toISOString().slice(0, 10);
+    const orders = store.orders.filter(
+      (order) => order.status !== "cancelled" && order.createdAt.startsWith(key),
+    );
+    const revenue = orders.reduce((sum, order) => sum + order.total, 0);
+    const cogs = orders.reduce((sum, order) => sum + summarizeOrderCost(store, order), 0);
+
+    return {
+      key,
+      label: formatter.format(date),
+      revenue,
+      cogs,
+      profit: revenue - cogs,
+    };
+  });
+}
+
+export function getStatusBreakdown(store: StoreData) {
+  const labels = {
+    pending_payment: "Pending payment",
+    payment_review: "Payment review",
+    confirmed: "Confirmed",
+    in_production: "In production",
+    ready_for_pickup: "Ready for pickup",
+    out_for_delivery: "Out for delivery",
+    completed: "Completed",
+    cancelled: "Cancelled",
+  } as const;
+
+  return Object.entries(labels).map(([status, label]) => ({
+    status,
+    label,
+    count: store.orders.filter((order) => order.status === status).length,
+  }));
+}
+
+export function getReportHighlights(store: StoreData) {
+  const metrics = getDashboardMetrics(store);
+  const nonCancelledOrders = store.orders.filter((order) => order.status !== "cancelled");
+  const averageOrderValue = nonCancelledOrders.length
+    ? metrics.revenue / nonCancelledOrders.length
+    : 0;
+  const profitMargin = metrics.revenue ? metrics.grossProfit / metrics.revenue : 0;
+
+  return {
+    ...metrics,
+    averageOrderValue,
+    profitMargin,
+  };
+}
+
 export function formatDateTime(value: string) {
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",

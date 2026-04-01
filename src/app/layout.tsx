@@ -18,13 +18,19 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/brand/logo-red-transparent.png?v=4",
+        url: "/brand/logo-white-bg.png?v=1",
+        type: "image/png",
+      },
+    ],
+    shortcut: [
+      {
+        url: "/brand/logo-white-bg.png?v=1",
         type: "image/png",
       },
     ],
     apple: [
       {
-        url: "/brand/logo-red-transparent.png?v=4",
+        url: "/brand/logo-white-bg.png?v=1",
         type: "image/png",
       },
     ],
