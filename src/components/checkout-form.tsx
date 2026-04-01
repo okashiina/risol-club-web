@@ -18,8 +18,162 @@ type CheckoutFormProps = {
 
 type CartState = Record<string, number>;
 
+type SubmissionSnapshot = {
+  customerName: string;
+  fulfillment: "pickup" | "delivery";
+  total: number;
+  totalPacks: number;
+  totalPieces: number;
+};
+
 function cartKey(productId: string, variantType: ProductVariantType) {
   return `${productId}:${variantType}`;
+}
+
+function CheckoutSendingOverlay({
+  locale,
+  snapshot,
+}: {
+  locale: Locale;
+  snapshot: SubmissionSnapshot;
+}) {
+  const progressCopy =
+    locale === "en"
+      ? [
+          "Packing your checkout details",
+          "Saving the order into our kitchen queue",
+          "Preparing your receipt page",
+        ]
+      : [
+          "Merapikan detail checkout kamu",
+          "Menyimpan order ke antrean dapur",
+          "Menyiapkan halaman receipt kamu",
+        ];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(255,248,242,0.78)] px-4 backdrop-blur-md">
+      <div className="relative w-full max-w-xl overflow-hidden rounded-[2rem] border border-[rgba(185,30,30,0.14)] bg-[linear-gradient(145deg,rgba(255,255,255,0.98),rgba(255,244,236,0.95))] p-6 shadow-[0_28px_80px_rgba(129,47,26,0.18)] sm:p-7">
+        <div className="absolute -right-14 -top-14 h-40 w-40 rounded-full bg-[radial-gradient(circle,rgba(232,166,60,0.36),rgba(232,166,60,0))] blur-2xl" />
+        <div className="absolute -left-16 bottom-0 h-44 w-44 rounded-full bg-[radial-gradient(circle,rgba(185,30,30,0.18),rgba(185,30,30,0))] blur-2xl" />
+
+        <div className="relative">
+          <div className="inline-flex items-center gap-3 rounded-full border border-[rgba(185,30,30,0.12)] bg-white/90 px-4 py-2 shadow-[0_10px_24px_rgba(129,47,26,0.08)]">
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-3 w-3 animate-ping rounded-full bg-[color:var(--brand-700)] opacity-60" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-[color:var(--brand-900)]" />
+            </span>
+            <span className="text-[11px] font-black uppercase tracking-[0.24em] text-[color:var(--brand-900)]">
+              {locale === "en" ? "Kitchen relay active" : "Relay dapur aktif"}
+            </span>
+          </div>
+
+          <div className="mt-5 grid gap-5 md:grid-cols-[1.05fr_0.95fr]">
+            <div>
+              <p className="text-sm font-semibold text-[color:var(--ink-700)]">
+                {locale === "en"
+                  ? `Sending ${snapshot.customerName || "your"} order now`
+                  : `Lagi kirim order${snapshot.customerName ? ` ${snapshot.customerName}` : ""}`}
+              </p>
+              <h3 className="mt-2 font-display text-3xl leading-tight text-[color:var(--brand-900)] sm:text-[2.2rem]">
+                {locale === "en"
+                  ? "Your tray is heading into the system."
+                  : "Tray order kamu lagi masuk ke sistem."}
+              </h3>
+              <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
+                {locale === "en"
+                  ? "Please keep this page open for a moment. We are locking the order, checking the upload, and preparing the receipt."
+                  : "Tahan sebentar ya, jangan tutup halaman ini dulu. Kami lagi mengunci order, mengecek upload, lalu menyiapkan receipt-nya."}
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {progressCopy.map((item, index) => (
+                  <div
+                    key={item}
+                    className="flex items-center gap-3 rounded-[1.2rem] border border-[rgba(185,30,30,0.08)] bg-white/88 px-4 py-3"
+                  >
+                    <span
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[color:var(--paper-100)] text-xs font-black text-[color:var(--brand-900)] animate-pulse"
+                      style={{ animationDelay: `${index * 120}ms` }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="text-sm font-semibold text-[color:var(--ink-700)]">
+                      {item}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden rounded-[1.7rem] border border-[rgba(185,30,30,0.1)] bg-[linear-gradient(160deg,#fff8ef,#fff0e8)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]">
+              <div className="absolute inset-x-5 top-5 h-1.5 overflow-hidden rounded-full bg-white/80">
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-[linear-gradient(90deg,#b91c1c,#e8a63c)]" />
+              </div>
+
+              <div className="mt-5 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
+                    {locale === "en" ? "Live snapshot" : "Snapshot order"}
+                  </p>
+                  <p className="mt-1 text-sm text-[color:var(--ink-700)]">
+                    {snapshot.fulfillment === "delivery"
+                      ? locale === "en"
+                        ? "Delivery follow-up will continue after this."
+                        : "Lanjutan delivery dibahas setelah ini."
+                      : locale === "en"
+                        ? "Pickup flow selected."
+                        : "Flow pickup yang dipilih."}
+                  </p>
+                </div>
+                <div className="flex items-end gap-1">
+                  <span className="h-8 w-2 animate-bounce rounded-full bg-[color:var(--brand-900)] [animation-delay:0ms]" />
+                  <span className="h-11 w-2 animate-bounce rounded-full bg-[color:var(--brand-700)] [animation-delay:120ms]" />
+                  <span className="h-6 w-2 animate-bounce rounded-full bg-[color:var(--accent-gold)] [animation-delay:240ms]" />
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3">
+                <div className="rounded-[1.25rem] bg-white/90 px-4 py-3">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+                    {locale === "en" ? "Total packs" : "Total pack"}
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-[color:var(--brand-900)]">
+                    {snapshot.totalPacks}
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-[1.25rem] bg-white/82 px-4 py-3">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+                      {locale === "en" ? "Pieces" : "Pcs"}
+                    </p>
+                    <p className="mt-1 text-xl font-black text-[color:var(--brand-900)]">
+                      {snapshot.totalPieces}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.25rem] bg-white/82 px-4 py-3">
+                    <p className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+                      {locale === "en" ? "Mode" : "Mode"}
+                    </p>
+                    <p className="mt-1 text-xl font-black capitalize text-[color:var(--brand-900)]">
+                      {snapshot.fulfillment}
+                    </p>
+                  </div>
+                </div>
+                <div className="rounded-[1.25rem] border border-dashed border-[rgba(185,30,30,0.18)] bg-white/88 px-4 py-3">
+                  <p className="text-xs font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+                    {locale === "en" ? "Estimated total" : "Estimasi total"}
+                  </p>
+                  <p className="mt-1 text-2xl font-black text-[color:var(--brand-900)]">
+                    Rp {snapshot.total.toLocaleString("id-ID")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function CheckoutForm({
@@ -33,6 +187,9 @@ export function CheckoutForm({
 }: CheckoutFormProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submissionSnapshot, setSubmissionSnapshot] =
+    useState<SubmissionSnapshot | null>(null);
   const [error, setError] = useState("");
   const [fulfillment, setFulfillment] = useState<"pickup" | "delivery">("pickup");
   const [cart, setCart] = useState<CartState>(() => {
@@ -77,6 +234,8 @@ export function CheckoutForm({
   const deliveryFee = 0;
   const total = subtotal + deliveryFee;
   const totalPieces = selectedItems.reduce((sum, item) => sum + item.pieceCount, 0);
+  const totalPacks = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
+  const isBusy = isSubmitting || isPending;
 
   function updateQuantity(productId: string, variantType: ProductVariantType, delta: number) {
     setCart((current) => {
@@ -118,8 +277,18 @@ export function CheckoutForm({
     formData.set("locale", locale);
     formData.set("fulfillmentMethod", fulfillment);
     formData.set("items", JSON.stringify(selectedItems));
+    setSubmissionSnapshot({
+      customerName,
+      fulfillment,
+      total,
+      totalPacks,
+      totalPieces,
+    });
+    setIsSubmitting(true);
 
-    startTransition(async () => {
+    let submitted = false;
+
+    try {
       const response = await fetch("/api/order", {
         method: "POST",
         body: formData,
@@ -132,17 +301,42 @@ export function CheckoutForm({
           result.error ??
             (locale === "en" ? "Unable to submit order." : "Order belum bisa dikirim."),
         );
+        setIsSubmitting(false);
         return;
       }
 
-      router.push(`/order/${result.code}?name=${encodeURIComponent(customerName)}`);
-      router.refresh();
-    });
+      submitted = true;
+      startTransition(() => {
+        router.push(`/order/${result.code}?name=${encodeURIComponent(customerName)}`);
+        router.refresh();
+      });
+    } catch {
+      setError(
+        locale === "en"
+          ? "Unable to submit order right now. Please try again."
+          : "Order belum bisa dikirim sekarang. Coba sebentar lagi ya.",
+      );
+      setIsSubmitting(false);
+    } finally {
+      if (!submitted) {
+        setSubmissionSnapshot(null);
+      }
+    }
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
-      <form onSubmit={handleSubmit} className="surface-card rounded-[2rem] p-5 sm:p-7">
+    <div className="relative grid gap-6 lg:grid-cols-[1.15fr_0.85fr]">
+      {isSubmitting && submissionSnapshot ? (
+        <CheckoutSendingOverlay locale={locale} snapshot={submissionSnapshot} />
+      ) : null}
+
+      <form
+        onSubmit={handleSubmit}
+        aria-busy={isBusy}
+        className={`surface-card rounded-[2rem] p-5 transition duration-300 sm:p-7 ${
+          isBusy ? "pointer-events-none scale-[0.995] opacity-80 blur-[1px]" : ""
+        }`}
+      >
         <div className="grid gap-7">
           <section className="grid gap-4">
             <div>
@@ -238,7 +432,7 @@ export function CheckoutForm({
                                   <div className="text-sm text-[color:var(--ink-700)]">
                                     {quantity > 0 ? (
                                       <span>
-                                        {quantity} qty · {getPieceCount(product, quantity)} pcs
+                                        {quantity} qty Â· {getPieceCount(product, quantity)} pcs
                                       </span>
                                     ) : (
                                       <span>
@@ -395,16 +589,26 @@ export function CheckoutForm({
 
           <button
             type="submit"
-            disabled={isPending}
+            disabled={isBusy}
             className="btn-primary px-6 py-4 text-center font-bold disabled:opacity-60"
           >
-            {isPending
-              ? locale === "en"
-                ? "Sending your order..."
-                : "Mengirim order..."
-              : locale === "en"
-                ? `Submit order - Rp ${total.toLocaleString("id-ID")}`
-                : `Kirim order - Rp ${total.toLocaleString("id-ID")}`}
+            <span className="inline-flex items-center justify-center gap-3">
+              {isBusy ? (
+                <>
+                  <span className="relative flex h-5 w-5 items-center justify-center">
+                    <span className="absolute h-5 w-5 animate-ping rounded-full border border-white/45" />
+                    <span className="h-2.5 w-2.5 rounded-full bg-white" />
+                  </span>
+                  <span>
+                    {locale === "en" ? "Sending your order..." : "Mengirim order..."}
+                  </span>
+                </>
+              ) : locale === "en" ? (
+                `Submit order - Rp ${total.toLocaleString("id-ID")}`
+              ) : (
+                `Kirim order - Rp ${total.toLocaleString("id-ID")}`
+              )}
+            </span>
           </button>
         </div>
       </form>
@@ -427,7 +631,7 @@ export function CheckoutForm({
                         {item.productName}
                       </p>
                       <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                        {item.variantLabel} · {item.quantity} qty · {item.pieceCount} pcs
+                        {item.variantLabel} Â· {item.quantity} qty Â· {item.pieceCount} pcs
                       </p>
                     </div>
                     <p className="text-sm font-black text-[color:var(--brand-900)]">
