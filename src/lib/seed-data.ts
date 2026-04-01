@@ -16,8 +16,8 @@ export const seedData: StoreData = {
     bankName: "BCA",
     bankAccountNumber: "1234567890",
     bankAccountHolder: "Risol Club",
-    sellerWhatsapp: "6285159134699",
-    sellerWhatsappDisplay: "085159134699",
+    sellerWhatsapp: "6285183151407",
+    sellerWhatsappDisplay: "085183151407",
     defaultDeliveryFee: 0,
   },
   suppliers: [

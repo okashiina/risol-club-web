@@ -12,12 +12,28 @@ const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
 const STORE_ROW_ID = "primary";
 const STORE_LOCK_KEY = 9_513_469;
+const LEGACY_SELLER_WHATSAPP = "6285159134699";
+const LEGACY_SELLER_WHATSAPP_DISPLAY = "085159134699";
+const DEFAULT_SELLER_WHATSAPP = "6285183151407";
+const DEFAULT_SELLER_WHATSAPP_DISPLAY = "085183151407";
 
 let writeQueue = Promise.resolve<StoreData | null>(null);
 let databaseReadyPromise: Promise<void> | null = null;
 
 function deepClone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function normalizeStoreData(store: StoreData) {
+  if (store.settings.sellerWhatsapp === LEGACY_SELLER_WHATSAPP) {
+    store.settings.sellerWhatsapp = DEFAULT_SELLER_WHATSAPP;
+  }
+
+  if (store.settings.sellerWhatsappDisplay === LEGACY_SELLER_WHATSAPP_DISPLAY) {
+    store.settings.sellerWhatsappDisplay = DEFAULT_SELLER_WHATSAPP_DISPLAY;
+  }
+
+  return store;
 }
 
 function getBootstrapMode() {
@@ -33,7 +49,7 @@ function getBootstrapMode() {
 async function readExistingLocalStoreOrNull() {
   try {
     const content = await readFile(STORE_FILE, "utf8");
-    return JSON.parse(content) as StoreData;
+    return normalizeStoreData(JSON.parse(content) as StoreData);
   } catch {
     return null;
   }
@@ -64,7 +80,7 @@ async function ensureLocalStoreFile() {
 async function readLocalStore() {
   await ensureLocalStoreFile();
   const content = await readFile(STORE_FILE, "utf8");
-  return JSON.parse(content) as StoreData;
+  return normalizeStoreData(JSON.parse(content) as StoreData);
 }
 
 async function ensureDatabaseStore() {
@@ -128,7 +144,7 @@ async function readDatabaseStore() {
     .limit(1);
 
   if (rows[0]?.payload) {
-    return rows[0].payload as StoreData;
+    return normalizeStoreData(rows[0].payload as StoreData);
   }
 
   const fallbackStore = await resolveInitialDatabaseStore();
@@ -141,7 +157,7 @@ async function readDatabaseStore() {
     })
     .onConflictDoNothing();
 
-  return fallbackStore;
+  return normalizeStoreData(fallbackStore);
 }
 
 async function writeLocalStore(
@@ -149,7 +165,7 @@ async function writeLocalStore(
 ) {
   const pendingWrite = writeQueue.then(async () => {
     const current = await readLocalStore();
-    const next = await updater(deepClone(current));
+    const next = normalizeStoreData(await updater(deepClone(current)));
     await writeFile(STORE_FILE, JSON.stringify(next, null, 2), "utf8");
     return next;
   });
@@ -181,9 +197,8 @@ async function writeDatabaseStore(
       .limit(1);
 
     const current =
-      (rows[0]?.payload as StoreData | undefined) ??
-      (await resolveInitialDatabaseStore());
-    const next = await updater(deepClone(current));
+      normalizeStoreData(rows[0]?.payload as StoreData | undefined ?? (await resolveInitialDatabaseStore()));
+    const next = normalizeStoreData(await updater(deepClone(current)));
 
     if (rows.length === 0) {
       await tx.insert(appState).values({
