@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { put } from "@vercel/blob";
 import { getPieceCount, getVariant } from "@/lib/catalog";
+import { sendNewOrderSellerEmail } from "@/lib/email";
 import {
   calculateProductCost,
   makeId,
@@ -8,7 +9,7 @@ import {
   readStore,
   writeStore,
 } from "@/lib/data-store";
-import { Locale } from "@/lib/types";
+import { Locale, Order } from "@/lib/types";
 
 function makeOrderCode(orderCount: number) {
   const date = new Date();
@@ -116,43 +117,47 @@ export async function POST(request: Request) {
     (sum, item) => sum + item.quantity * item.unitPrice,
     0,
   );
-  const normalizedFulfillmentMethod =
+  const normalizedFulfillmentMethod: Order["fulfillmentMethod"] =
     fulfillmentMethod === "delivery" ? "delivery" : "pickup";
   const deliveryFee = 0;
   const total = subtotal + deliveryFee;
+  const createdAt = nowIso();
+  const normalizedItems = parsedItems.map((item) => {
+    const product = store.products.find((entry) => entry.id === item.productId);
+    const variant = product ? getVariant(product, item.variantType) : undefined;
+
+    return {
+      ...item,
+      variantLabel: item.variantLabel || variant?.label || "Legacy order",
+      pieceCount: product ? getPieceCount(product, item.quantity) : item.quantity * 3,
+      unitPrice: variant?.price || item.unitPrice,
+      costSnapshot: calculateProductCost(store, item.productId),
+    };
+  });
+
+  const createdOrder: Order = {
+    id: makeId("ord"),
+    code,
+    source: "web" as const,
+    locale,
+    customerName,
+    customerWhatsapp,
+    fulfillmentMethod: normalizedFulfillmentMethod,
+    address: normalizedFulfillmentMethod === "delivery" ? address || undefined : undefined,
+    preorderDate,
+    note: note || undefined,
+    deliveryFee,
+    subtotal,
+    total,
+    status: "payment_review" as const,
+    items: normalizedItems,
+    paymentProof: paymentPayload,
+    createdAt,
+    updatedAt: createdAt,
+  };
 
   await writeStore((current) => {
-    current.orders.unshift({
-      id: makeId("ord"),
-      code,
-      source: "web",
-      locale,
-      customerName,
-      customerWhatsapp,
-      fulfillmentMethod: normalizedFulfillmentMethod,
-      address: normalizedFulfillmentMethod === "delivery" ? address || undefined : undefined,
-      preorderDate,
-      note: note || undefined,
-      deliveryFee,
-      subtotal,
-      total,
-      status: "payment_review",
-      items: parsedItems.map((item) => {
-        const product = current.products.find((entry) => entry.id === item.productId);
-        const variant = product ? getVariant(product, item.variantType) : undefined;
-
-        return {
-          ...item,
-          variantLabel: item.variantLabel || variant?.label || "Legacy order",
-          pieceCount: product ? getPieceCount(product, item.quantity) : item.quantity * 3,
-          unitPrice: variant?.price || item.unitPrice,
-          costSnapshot: calculateProductCost(current, item.productId),
-        };
-      }),
-      paymentProof: paymentPayload,
-      createdAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    current.orders.unshift(createdOrder);
 
     current.notifications.unshift({
       id: makeId("notif"),
@@ -160,11 +165,17 @@ export async function POST(request: Request) {
       body: `${customerName} mengirim order ${code}.`,
       href: "/seller/orders",
       read: false,
-      createdAt: nowIso(),
+      createdAt,
     });
 
     return current;
   });
+
+  try {
+    await sendNewOrderSellerEmail(createdOrder);
+  } catch (error) {
+    console.error("Failed to send seller order email", error);
+  }
 
   return NextResponse.json({ code });
 }

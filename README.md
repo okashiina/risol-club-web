@@ -136,7 +136,35 @@ DATABASE_URL=postgres://USER:PASSWORD@HOST/DATABASE?sslmode=require
 SELLER_EMAIL=owner@example.com
 SELLER_PASSWORD=replace-with-a-strong-password
 SELLER_SESSION_SECRET=replace-with-a-strong-random-secret
+RESEND_API_KEY=re_xxxxx
+ORDER_ALERT_EMAIL_TO=owner@example.com
+ORDER_ALERT_EMAIL_FROM=Risol Club <onboarding@resend.dev>
 ```
+
+## Seller Email Alerts
+
+The app can now email the seller automatically whenever a new customer order is submitted from the storefront.
+
+Current email flow:
+
+- order is saved to the database first
+- seller dashboard notification is created as usual
+- seller email alert is attempted after the write succeeds
+- if the email provider fails, the order still stays safely saved
+
+Required environment variables:
+
+```bash
+RESEND_API_KEY=re_xxxxx
+ORDER_ALERT_EMAIL_TO=owner@example.com
+ORDER_ALERT_EMAIL_FROM=Risol Club <onboarding@resend.dev>
+```
+
+Notes:
+
+- if `ORDER_ALERT_EMAIL_TO` is omitted, the app falls back to `SELLER_EMAIL`
+- `onboarding@resend.dev` works for early testing
+- for production sending, it is better to verify your own sending domain in Resend
 
 ## Delivery Flow
 
