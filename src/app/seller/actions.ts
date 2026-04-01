@@ -195,6 +195,21 @@ export async function markNotificationsReadAction() {
   revalidateSeller();
 }
 
+export async function clearNotificationsAction(formData: FormData) {
+  const confirmation = textValue(formData, "confirmation");
+
+  if (confirmation !== "DELETE") {
+    return;
+  }
+
+  await writeStore((store) => {
+    store.notifications = [];
+    return store;
+  });
+
+  revalidateSeller();
+}
+
 export async function updateOrderStatusAction(formData: FormData) {
   const orderId = textValue(formData, "orderId");
   const nextStatus = textValue(formData, "status") as OrderStatus;

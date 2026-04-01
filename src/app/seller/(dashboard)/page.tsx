@@ -1,8 +1,13 @@
 import Link from "next/link";
 import { ActionButton } from "@/components/action-button";
+import { DangerSubmitButton } from "@/components/danger-submit-button";
 import { formatCompactCurrency, formatDateTime } from "@/lib/reports";
 import { statusLabel } from "@/lib/data-store";
-import { markNotificationsReadAction, sellerLogoutAction } from "@/app/seller/actions";
+import {
+  clearNotificationsAction,
+  markNotificationsReadAction,
+  sellerLogoutAction,
+} from "@/app/seller/actions";
 import { readSellerOverviewData } from "@/lib/store-projections";
 
 export default async function SellerOverviewPage() {
@@ -55,6 +60,14 @@ export default async function SellerOverviewPage() {
               <ActionButton className="w-full rounded-full bg-[color:var(--brand-900)] px-4 py-3 font-bold text-white">
                 Mark notifications as read
               </ActionButton>
+            </form>
+            <form action={clearNotificationsAction}>
+              <DangerSubmitButton
+                confirmMessage="Hapus semua notifikasi di dashboard seller?"
+                className="w-full rounded-full border border-[#f3cfca] bg-[#fff5f3] px-4 py-3 font-bold text-[color:var(--brand-900)]"
+              >
+                Hapus semua notif
+              </DangerSubmitButton>
             </form>
             <form action={sellerLogoutAction}>
               <ActionButton className="w-full rounded-full border border-[color:var(--paper-300)] px-4 py-3 font-bold text-[color:var(--brand-900)]">
