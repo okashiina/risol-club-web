@@ -53,7 +53,14 @@ const DEFAULT_STORY_EN =
   "From our tiny kitchen, every batch is made to bring a warm little pause: easy to gift, easy to crave, and always meant to feel comforting 😊🙌";
 
 let writeQueue = Promise.resolve<StoreData | null>(null);
-let databaseReadyPromise: Promise<void> | null = null;
+type GlobalStoreState = typeof globalThis & {
+  __risolDatabaseReadyPromise?: Promise<void> | null;
+  __risolDatabaseReady?: boolean;
+};
+
+const globalStoreState = globalThis as GlobalStoreState;
+let databaseReadyPromise =
+  globalStoreState.__risolDatabaseReadyPromise ?? null;
 type ProjectionTx = Parameters<
   Parameters<NonNullable<ReturnType<typeof getDb>>["transaction"]>[0]
 >[0];
@@ -427,6 +434,10 @@ async function ensureDatabaseStore() {
     return;
   }
 
+  if (globalStoreState.__risolDatabaseReady) {
+    return;
+  }
+
   if (!databaseReadyPromise) {
     databaseReadyPromise = (async () => {
       const db = getDb();
@@ -632,7 +643,10 @@ async function ensureDatabaseStore() {
           await syncProjectedTables(tx, normalized);
         });
       }
+
+      globalStoreState.__risolDatabaseReady = true;
     })();
+    globalStoreState.__risolDatabaseReadyPromise = databaseReadyPromise;
   }
 
   await databaseReadyPromise;

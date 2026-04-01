@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
-import { getOrderByCode, orderMatchesCustomerName, readStore } from "@/lib/data-store";
+import { orderMatchesCustomerName } from "@/lib/data-store";
+import { readOrderByCodeData } from "@/lib/store-projections";
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
   const { code } = await params;
-  const store = await readStore();
-  const order = getOrderByCode(store, code);
+  const order = await readOrderByCodeData(code);
   const customerName = new URL(_request.url).searchParams.get("name");
 
   if (!order) {

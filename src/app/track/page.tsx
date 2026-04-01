@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
-import { getOrderByCode, orderMatchesCustomerName, readStore } from "@/lib/data-store";
+import { orderMatchesCustomerName } from "@/lib/data-store";
 import { getLocale } from "@/lib/i18n";
+import { readOrderByCodeData } from "@/lib/store-projections";
 
 export default async function OrderLookupPage({
   searchParams,
@@ -11,7 +12,6 @@ export default async function OrderLookupPage({
   searchParams: Promise<{ code?: string; name?: string }>;
 }) {
   const locale = await getLocale();
-  const store = await readStore();
   const { code = "", name = "" } = await searchParams;
   const trimmedCode = code.trim();
   const trimmedName = name.trim();
@@ -25,7 +25,7 @@ export default async function OrderLookupPage({
           ? "Please fill in both order code and customer name."
           : "Isi kode order dan nama pemesan dua-duanya ya.";
     } else {
-      const order = getOrderByCode(store, trimmedCode);
+      const order = await readOrderByCodeData(trimmedCode);
 
       if (!order) {
         error =

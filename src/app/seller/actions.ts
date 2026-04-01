@@ -15,7 +15,6 @@ import {
 } from "@/lib/catalog";
 import {
   calculateProductCost,
-  readStore,
   getProductStock,
   getRecipeForProduct,
   isSalesStatus,
@@ -302,12 +301,11 @@ export async function createManualOrderAction(formData: FormData) {
     quantity: number;
   }>;
 
-  const storeSnapshot = await readStore();
-  const nextCode = makeOrderCode(storeSnapshot.orders.length);
-  const paymentPayload = await fileToPaymentProofPayload(paymentProof, nextCode);
   let createdCode = "";
 
-  await writeStore((store) => {
+  await writeStore(async (store) => {
+    const code = makeOrderCode(store.orders.length);
+    const paymentPayload = await fileToPaymentProofPayload(paymentProof, code);
     const items = parsedItems
       .map((item) => {
         const product = store.products.find((entry) => entry.id === item.productId);
@@ -349,7 +347,6 @@ export async function createManualOrderAction(formData: FormData) {
       0,
     );
     const deliveryFee = 0;
-    const code = nextCode;
     const createdAt = nowIso();
 
     const order: Order = {
@@ -418,20 +415,19 @@ export async function createManualOrderAction(formData: FormData) {
 export async function editOrderAction(formData: FormData) {
   const orderId = textValue(formData, "orderId");
   const paymentProof = formData.get("paymentProof");
-  const storeSnapshot = await readStore();
-  const snapshotOrder = storeSnapshot.orders.find((item) => item.id === orderId);
-  const paymentPayload = snapshotOrder
-    ? await fileToPaymentProofPayload(paymentProof, snapshotOrder.code)
-    : undefined;
-  const previousProofHref = getPaymentProofHref(snapshotOrder?.paymentProof);
   let updatedCode = "";
+  let previousProofHref = "";
+  let uploadedProofHref = "";
 
-  await writeStore((store) => {
+  await writeStore(async (store) => {
     const order = store.orders.find((item) => item.id === orderId);
 
     if (!order) {
       return store;
     }
+
+    const paymentPayload = await fileToPaymentProofPayload(paymentProof, order.code);
+    previousProofHref = getPaymentProofHref(order.paymentProof);
 
     const now = nowIso();
     let subtotalDelta = 0;
@@ -492,6 +488,7 @@ export async function editOrderAction(formData: FormData) {
 
     if (paymentPayload) {
       order.paymentProof = paymentPayload;
+      uploadedProofHref = paymentPayload.url;
     }
 
     if (subtotalDelta > 0 || paymentPayload) {
@@ -507,7 +504,12 @@ export async function editOrderAction(formData: FormData) {
     revalidateOrderArtifacts(updatedCode);
   }
 
-  if (paymentPayload && previousProofHref && isBlobPaymentProof(previousProofHref)) {
+  if (
+    uploadedProofHref &&
+    previousProofHref &&
+    previousProofHref !== uploadedProofHref &&
+    isBlobPaymentProof(previousProofHref)
+  ) {
     try {
       await del(previousProofHref);
     } catch {

@@ -4,14 +4,13 @@ import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
 import { PaymentProofPreview } from "@/components/payment-proof-preview";
 import {
-  getOrderByCode,
   orderMatchesCustomerName,
-  readStore,
   statusLabel,
 } from "@/lib/data-store";
 import { getLocale } from "@/lib/i18n";
 import { getPaymentProofHref } from "@/lib/payment-proof";
 import { formatCurrency, formatDateTime } from "@/lib/reports";
+import { readOrderByCodeData, readSettingsData } from "@/lib/store-projections";
 
 export default async function OrderTrackingPage({
   params,
@@ -21,10 +20,12 @@ export default async function OrderTrackingPage({
   searchParams: Promise<{ name?: string }>;
 }) {
   const locale = await getLocale();
-  const store = await readStore();
   const { code } = await params;
   const { name } = await searchParams;
-  const order = getOrderByCode(store, code);
+  const [order, settings] = await Promise.all([
+    readOrderByCodeData(code),
+    readSettingsData(),
+  ]);
 
   if (!order) {
     notFound();
@@ -39,8 +40,8 @@ export default async function OrderTrackingPage({
         ? "Payment proof file"
         : "File bukti transfer"
       : order.paymentProof?.fileName;
-  const sellerWhatsapp = store.settings.sellerWhatsapp;
-  const sellerWhatsappDisplay = store.settings.sellerWhatsappDisplay;
+  const sellerWhatsapp = settings.sellerWhatsapp;
+  const sellerWhatsappDisplay = settings.sellerWhatsappDisplay;
   const deliveryWhatsappMessage =
     locale === "en"
       ? `Hi, I want to discuss delivery for order ${order.code} under the name ${order.customerName}.`

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, sql as drizzleSql } from "drizzle-orm";
 import { cache } from "react";
 import { getDb, hasDatabaseUrl } from "@/db/db";
 import {
@@ -15,7 +15,12 @@ import {
   settingsProjection,
   suppliersProjection,
 } from "@/db/schema";
-import { ensureDatabaseStoreReady, readStore, syncDatabaseProjections } from "@/lib/data-store";
+import {
+  ensureDatabaseStoreReady,
+  getOrderByCode,
+  readStore,
+  syncDatabaseProjections,
+} from "@/lib/data-store";
 import {
   getDashboardMetrics,
   getReportDailySeries,
@@ -203,6 +208,46 @@ async function withProjectionRecovery<T>(
   return reader();
 }
 
+export const readSettingsData = cache(async () =>
+  withDbFallback(
+    async () =>
+      (await withProjectionRecovery(
+        async () => {
+          const db = getDb()!;
+          const rows = await db
+            .select({ payload: settingsProjection.payload })
+            .from(settingsProjection)
+            .limit(1);
+
+          return (rows[0]?.payload as AppSettings | undefined) ?? null;
+        },
+        (result) => result === null,
+      )) ?? (await readStore()).settings,
+    async () => (await readStore()).settings,
+  ));
+
+export const readOrderByCodeData = cache(async (code: string) =>
+  withDbFallback(
+    async () =>
+      withProjectionRecovery(
+        async () => {
+          const db = getDb()!;
+          const rows = await db
+            .select()
+            .from(ordersProjection)
+            .where(drizzleSql`lower(${ordersProjection.code}) = ${code.toLowerCase()}`)
+            .limit(1);
+
+          return rows[0] ? mapOrder(rows[0]) : null;
+        },
+        (result) => result === null,
+      ),
+    async () => {
+      const store = await readStore();
+      return getOrderByCode(store, code) ?? null;
+    },
+  ));
+
 export const readPublicCatalogData = cache(async () =>
   withDbFallback(
     async () =>
@@ -221,7 +266,7 @@ export const readPublicCatalogData = cache(async () =>
       ]);
 
       return {
-        settings: (settingsRow[0]?.payload as AppSettings | undefined) ?? (await readStore()).settings,
+        settings: (settingsRow[0]?.payload as AppSettings | undefined) ?? (await readSettingsData()),
         products: productRows.map(mapProduct),
       };
     }, (result) => result.products.length === 0),
@@ -259,10 +304,10 @@ export const readSellerUnreadNotificationCount = cache(async () =>
       withProjectionRecovery(async () => {
       const db = getDb()!;
       const rows = await db
-        .select()
+        .select({ count: drizzleSql<number>`count(*)` })
         .from(notificationsProjection)
         .where(eq(notificationsProjection.read, false));
-      return rows.length;
+      return Number(rows[0]?.count ?? 0);
     }, (result) => result === 0),
     async () => (await readStore()).notifications.filter((notification) => !notification.read).length,
   ));
@@ -281,7 +326,7 @@ export const readSellerOverviewData = cache(async () =>
       ]);
 
       const storeSubset: StoreData = {
-        settings: (await readPublicCatalogData()).settings,
+        settings: await readSettingsData(),
         suppliers: [],
         ingredients: ingredientRows.map(mapIngredient),
         ingredientSupplierPrices: [],
@@ -349,7 +394,7 @@ export const readSellerReportsData = cache(async () =>
       ]);
 
       const storeSubset: StoreData = {
-        settings: (await readPublicCatalogData()).settings,
+        settings: await readSettingsData(),
         suppliers: [],
         ingredients: [],
         ingredientSupplierPrices: [],
@@ -427,7 +472,7 @@ export const readSellerOperationsStore = cache(async () =>
           ]);
 
         return {
-          settings: (await readPublicCatalogData()).settings,
+          settings: await readSettingsData(),
           suppliers: supplierRows.map(mapSupplier),
           ingredients: ingredientRows.map(mapIngredient),
           ingredientSupplierPrices: priceRows.map(mapSupplierPrice),

@@ -6,7 +6,6 @@ import {
   calculateProductCost,
   makeId,
   nowIso,
-  readStore,
   writeStore,
 } from "@/lib/data-store";
 import { Locale, Order } from "@/lib/types";
@@ -59,7 +58,6 @@ async function fileToPaymentProofPayload(
 
 export async function POST(request: Request) {
   const formData = await request.formData();
-  const store = await readStore();
   const locale = (String(formData.get("locale") ?? "id") === "en" ? "en" : "id") as Locale;
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerWhatsapp = String(formData.get("customerWhatsapp") ?? "").trim();
@@ -98,67 +96,60 @@ export async function POST(request: Request) {
     );
   }
 
-  const code = makeOrderCode(store.orders.length);
-  const paymentPayload = await fileToPaymentProofPayload(paymentProof, code);
-
-  if (!paymentPayload) {
-    return NextResponse.json(
-      {
-        error:
-          locale === "en"
-            ? "Please upload a payment proof."
-            : "Upload bukti transfer dulu ya.",
-      },
-      { status: 400 },
-    );
-  }
-
-  const subtotal = parsedItems.reduce(
-    (sum, item) => sum + item.quantity * item.unitPrice,
-    0,
-  );
   const normalizedFulfillmentMethod: Order["fulfillmentMethod"] =
     fulfillmentMethod === "delivery" ? "delivery" : "pickup";
-  const deliveryFee = 0;
-  const total = subtotal + deliveryFee;
-  const createdAt = nowIso();
-  const normalizedItems = parsedItems.map((item) => {
-    const product = store.products.find((entry) => entry.id === item.productId);
-    const variant = product ? getVariant(product, item.variantType) : undefined;
+  let createdOrder: Order | null = null;
+  const writeErrorResponse = await writeStore(async (current) => {
+    const code = makeOrderCode(current.orders.length);
+    const paymentPayload = await fileToPaymentProofPayload(paymentProof, code);
 
-    return {
-      ...item,
-      variantLabel: item.variantLabel || variant?.label || "Legacy order",
-      pieceCount: product ? getPieceCount(product, item.quantity) : item.quantity * 3,
-      unitPrice: variant?.price || item.unitPrice,
-      costSnapshot: calculateProductCost(store, item.productId),
+    if (!paymentPayload) {
+      throw new Error(locale === "en" ? "PAYMENT_PROOF_REQUIRED" : "BUKTI_TRANSFER_REQUIRED");
+    }
+
+    const normalizedItems = parsedItems.map((item) => {
+      const product = current.products.find((entry) => entry.id === item.productId);
+      const variant = product ? getVariant(product, item.variantType) : undefined;
+
+      return {
+        ...item,
+        variantLabel: item.variantLabel || variant?.label || "Legacy order",
+        pieceCount: product ? getPieceCount(product, item.quantity) : item.quantity * 3,
+        unitPrice: variant?.price || item.unitPrice,
+        costSnapshot: calculateProductCost(current, item.productId),
+      };
+    });
+
+    const subtotal = normalizedItems.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0,
+    );
+    const deliveryFee = 0;
+    const total = subtotal + deliveryFee;
+    const createdAt = nowIso();
+
+    createdOrder = {
+      id: makeId("ord"),
+      code,
+      source: "web" as const,
+      locale,
+      customerName,
+      customerWhatsapp,
+      fulfillmentMethod: normalizedFulfillmentMethod,
+      address: normalizedFulfillmentMethod === "delivery" ? address || undefined : undefined,
+      preorderDate,
+      note: note || undefined,
+      deliveryFee,
+      subtotal,
+      total,
+      status: "payment_review" as const,
+      items: normalizedItems,
+      paymentProof: paymentPayload,
+      createdAt,
+      updatedAt: createdAt,
     };
-  });
 
-  const createdOrder: Order = {
-    id: makeId("ord"),
-    code,
-    source: "web" as const,
-    locale,
-    customerName,
-    customerWhatsapp,
-    fulfillmentMethod: normalizedFulfillmentMethod,
-    address: normalizedFulfillmentMethod === "delivery" ? address || undefined : undefined,
-    preorderDate,
-    note: note || undefined,
-    deliveryFee,
-    subtotal,
-    total,
-    status: "payment_review" as const,
-    items: normalizedItems,
-    paymentProof: paymentPayload,
-    createdAt,
-    updatedAt: createdAt,
-  };
-
-  await writeStore((current) => {
     current.orders.unshift(createdOrder);
-
     current.notifications.unshift({
       id: makeId("notif"),
       title: "Order baru masuk",
@@ -169,13 +160,42 @@ export async function POST(request: Request) {
     });
 
     return current;
+  }).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : "";
+
+    if (message === "PAYMENT_PROOF_REQUIRED" || message === "BUKTI_TRANSFER_REQUIRED") {
+      return NextResponse.json(
+        {
+          error:
+            locale === "en"
+              ? "Please upload a payment proof."
+              : "Upload bukti transfer dulu ya.",
+        },
+        { status: 400 },
+      );
+    }
+
+    throw error;
   });
 
+  if (writeErrorResponse instanceof NextResponse) {
+    return writeErrorResponse;
+  }
+
+  if (!createdOrder) {
+    return NextResponse.json(
+      { error: locale === "en" ? "Failed to create order." : "Order belum berhasil dibuat." },
+      { status: 500 },
+    );
+  }
+
+  const finalOrder = createdOrder as Order;
+
   try {
-    await sendNewOrderSellerEmail(createdOrder);
+    await sendNewOrderSellerEmail(finalOrder);
   } catch (error) {
     console.error("Failed to send seller order email", error);
   }
 
-  return NextResponse.json({ code });
+  return NextResponse.json({ code: finalOrder.code });
 }
