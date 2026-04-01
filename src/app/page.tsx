@@ -20,9 +20,6 @@ export default async function Home() {
             <Link href="/" className="rounded-full px-4 py-2 text-sm font-semibold">
               {locale === "en" ? "Home" : "Beranda"}
             </Link>
-            <Link href="/checkout" className="rounded-full px-4 py-2 text-sm font-semibold">
-              {locale === "en" ? "Order" : "Pesan"}
-            </Link>
             <Link href="/checkout" className="btn-primary px-4 py-2 text-sm font-semibold">
               {locale === "en" ? "Order now" : "Pesan sekarang"}
             </Link>
