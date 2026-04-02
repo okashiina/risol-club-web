@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { deleteOrderAction, editOrderAction } from "@/app/seller/actions";
 import { ActionButton } from "@/components/action-button";
-import { Order } from "@/lib/types";
+import { Product, Order } from "@/lib/types";
 
 type SellerOrderActionsProps = {
   order: Order;
+  products: Product[];
 };
 
 function itemKey(productId: string, variantType?: string) {
@@ -63,9 +64,27 @@ function ModalFrame({
   );
 }
 
-export function SellerOrderActions({ order }: SellerOrderActionsProps) {
+export function SellerOrderActions({ order, products }: SellerOrderActionsProps) {
   const [activeModal, setActiveModal] = useState<"edit" | "delete" | null>(null);
   const qtyLocked = ["completed", "cancelled"].includes(order.status);
+  const additionalVariants = products.flatMap((product) =>
+    product.variants
+      .filter((variant) => variant.isActive)
+      .filter(
+        (variant) =>
+          !order.items.some(
+            (item) =>
+              item.productId === product.id &&
+              (item.variantType ?? "legacy") === variant.type,
+          ),
+      )
+      .map((variant) => ({
+        productId: product.id,
+        productName: product.name,
+        variantType: variant.type,
+        variantLabel: variant.label,
+      })),
+  );
 
   return (
     <>
@@ -93,7 +112,7 @@ export function SellerOrderActions({ order }: SellerOrderActionsProps) {
       {activeModal === "edit" ? (
         <ModalFrame
           title={`Edit ${order.code}`}
-          description="Seller bisa menambah qty dari item yang sudah ada, lalu upload atau ganti bukti transfer kalau customer baru kirim belakangan."
+          description="Seller bisa menambah atau mengurangi qty item yang sudah ada, menyisipkan menu atau varian lain sebelum order selesai, lalu upload atau ganti bukti transfer kalau customer baru kirim belakangan."
           onClose={() => setActiveModal(null)}
         >
           <form action={editOrderAction} className="mt-5 grid gap-4">
@@ -119,22 +138,85 @@ export function SellerOrderActions({ order }: SellerOrderActionsProps) {
                       </div>
                       <div className="w-28">
                         <label className="label text-xs" htmlFor={`increase-${order.id}-${key}`}>
-                          Tambah qty
+                          Ubah qty (+/-)
                         </label>
                         <input
                           id={`increase-${order.id}-${key}`}
                           name={`increase:${item.productId}:${item.variantType ?? "legacy"}`}
                           type="number"
-                          min={0}
+                          min={order.items.length > 1 ? -item.quantity : -(item.quantity - 1)}
                           defaultValue={0}
                           disabled={qtyLocked}
                           className="field disabled:cursor-not-allowed disabled:opacity-60"
                         />
+                        <p className="mt-1 text-[11px] leading-5 text-[color:var(--ink-700)]">
+                          Pakai angka minus untuk ngurangin. Kalau jadi 0, item ini akan dilepas dari order selama masih ada item lain.
+                        </p>
                       </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+
+            <div className="rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-black text-[color:var(--brand-900)]">
+                    Tambah menu / varian lain
+                  </p>
+                  <p className="mt-1 text-xs leading-6 text-[color:var(--ink-700)]">
+                    Cocok kalau customer awalnya pesan satu menu lalu tiba-tiba mau nambah Choco Cheese atau switch ke varian lain sebelum order selesai.
+                  </p>
+                </div>
+                <div className="rounded-full bg-[color:var(--paper-100)] px-3 py-2 text-[11px] font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+                  qty = pack
+                </div>
+              </div>
+
+              {additionalVariants.length > 0 ? (
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {additionalVariants.map((item) => {
+                    const key = itemKey(item.productId, item.variantType);
+
+                    return (
+                      <div
+                        key={`${order.id}-add-${key}`}
+                        className="rounded-[1.25rem] border border-[color:var(--paper-300)] bg-[color:var(--paper-100)] p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-sm font-bold text-[color:var(--brand-900)]">
+                              {item.productName}
+                            </p>
+                            <p className="text-xs text-[color:var(--ink-700)]">
+                              {item.variantLabel} • akan ditambahkan sebagai item baru
+                            </p>
+                          </div>
+                          <div className="w-28">
+                            <label className="label text-xs" htmlFor={`add-${order.id}-${key}`}>
+                              Tambah qty
+                            </label>
+                            <input
+                              id={`add-${order.id}-${key}`}
+                              name={`addItem:${item.productId}:${item.variantType}`}
+                              type="number"
+                              min={0}
+                              defaultValue={0}
+                              disabled={qtyLocked}
+                              className="field disabled:cursor-not-allowed disabled:opacity-60"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="mt-4 rounded-[1.25rem] border border-dashed border-[color:var(--paper-300)] bg-[color:var(--paper-100)] px-4 py-4 text-sm text-[color:var(--ink-700)]">
+                  Semua menu dan varian aktif sudah ada di order ini, jadi sekarang yang bisa ditambah tinggal qty item yang sudah masuk.
+                </div>
+              )}
             </div>
 
             <div>

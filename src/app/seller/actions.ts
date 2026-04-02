@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { del, put } from "@vercel/blob";
-import { loginSeller, logoutSeller } from "@/lib/auth";
+import { loginSeller, logoutSeller, requireSellerSession } from "@/lib/auth";
 import {
   cloneImages,
   cloneVariants,
@@ -15,7 +15,6 @@ import {
 } from "@/lib/catalog";
 import {
   calculateProductCost,
-  readStore,
   getProductStock,
   getRecipeForProduct,
   isSalesStatus,
@@ -24,7 +23,7 @@ import {
   writeStore,
 } from "@/lib/data-store";
 import { getPaymentProofHref, isBlobPaymentProof } from "@/lib/payment-proof";
-import { Order, OrderStatus, Product, StoreData } from "@/lib/types";
+import { Order, OrderStatus, Product, ProductVariantType, StoreData } from "@/lib/types";
 
 function textValue(formData: FormData, key: string) {
   return String(formData.get(key) ?? "").trim();
@@ -34,16 +33,62 @@ function numberValue(formData: FormData, key: string) {
   return Number(textValue(formData, key) || 0);
 }
 
-function revalidateSeller() {
+async function requireSellerActionSession() {
+  await requireSellerSession();
+}
+
+function revalidateSellerLayout() {
+  revalidatePath("/seller", "layout");
+}
+
+function revalidateSellerDashboard() {
+  revalidateSellerLayout();
+  revalidatePath("/seller");
+}
+
+function revalidatePublicCatalog(slug?: string) {
   revalidatePath("/");
   revalidatePath("/checkout");
-  revalidatePath("/track");
-  revalidatePath("/seller");
+  revalidatePath("/menu/[slug]", "page");
+
+  if (slug) {
+    revalidatePath(`/menu/${slug}`);
+  }
+}
+
+function revalidateSellerSalesViews() {
+  revalidateSellerDashboard();
   revalidatePath("/seller/orders");
-  revalidatePath("/seller/menu");
-  revalidatePath("/seller/costing");
   revalidatePath("/seller/inventory");
   revalidatePath("/seller/reports");
+}
+
+function revalidateSellerMenuViews(slug?: string, previousSlug?: string) {
+  revalidateSellerDashboard();
+  revalidatePath("/seller/menu");
+  revalidatePublicCatalog(slug);
+
+  if (previousSlug && previousSlug !== slug) {
+    revalidatePath(`/menu/${previousSlug}`);
+  }
+}
+
+function revalidateSellerCostingViews() {
+  revalidateSellerDashboard();
+  revalidatePath("/seller/costing");
+  revalidatePath("/seller/menu");
+  revalidatePath("/seller/inventory");
+}
+
+function revalidateSellerInventoryViews() {
+  revalidateSellerDashboard();
+  revalidatePath("/seller/inventory");
+}
+
+function revalidateSellerProductViews(slug?: string, previousSlug?: string) {
+  revalidateSellerMenuViews(slug, previousSlug);
+  revalidatePath("/seller/costing");
+  revalidatePath("/seller/inventory");
 }
 
 function revalidateOrderArtifacts(orderCode: string) {
@@ -184,6 +229,8 @@ export async function sellerLogoutAction() {
 }
 
 export async function markNotificationsReadAction() {
+  await requireSellerActionSession();
+
   await writeStore((store) => {
     store.notifications = store.notifications.map((notification) => ({
       ...notification,
@@ -193,10 +240,29 @@ export async function markNotificationsReadAction() {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerDashboard();
+}
+
+export async function clearNotificationsAction(formData: FormData) {
+  await requireSellerActionSession();
+
+  const confirmation = textValue(formData, "confirmation");
+
+  if (confirmation !== "DELETE") {
+    return;
+  }
+
+  await writeStore((store) => {
+    store.notifications = [];
+    return store;
+  });
+
+  revalidateSellerDashboard();
 }
 
 export async function updateOrderStatusAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const orderId = textValue(formData, "orderId");
   const nextStatus = textValue(formData, "status") as OrderStatus;
   let updatedCode = "";
@@ -272,13 +338,15 @@ export async function updateOrderStatusAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerSalesViews();
   if (updatedCode) {
     revalidateOrderArtifacts(updatedCode);
   }
 }
 
 export async function createManualOrderAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const customerName = textValue(formData, "customerName");
   const customerWhatsapp = textValue(formData, "customerWhatsapp");
   const preorderDate = textValue(formData, "preorderDate");
@@ -302,12 +370,11 @@ export async function createManualOrderAction(formData: FormData) {
     quantity: number;
   }>;
 
-  const storeSnapshot = await readStore();
-  const nextCode = makeOrderCode(storeSnapshot.orders.length);
-  const paymentPayload = await fileToPaymentProofPayload(paymentProof, nextCode);
   let createdCode = "";
 
-  await writeStore((store) => {
+  await writeStore(async (store) => {
+    const code = makeOrderCode(store.orders.length);
+    const paymentPayload = await fileToPaymentProofPayload(paymentProof, code);
     const items = parsedItems
       .map((item) => {
         const product = store.products.find((entry) => entry.id === item.productId);
@@ -349,7 +416,6 @@ export async function createManualOrderAction(formData: FormData) {
       0,
     );
     const deliveryFee = 0;
-    const code = nextCode;
     const createdAt = nowIso();
 
     const order: Order = {
@@ -409,89 +475,167 @@ export async function createManualOrderAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerSalesViews();
   if (createdCode) {
     revalidateOrderArtifacts(createdCode);
   }
 }
 
 export async function editOrderAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const orderId = textValue(formData, "orderId");
   const paymentProof = formData.get("paymentProof");
-  const storeSnapshot = await readStore();
-  const snapshotOrder = storeSnapshot.orders.find((item) => item.id === orderId);
-  const paymentPayload = snapshotOrder
-    ? await fileToPaymentProofPayload(paymentProof, snapshotOrder.code)
-    : undefined;
-  const previousProofHref = getPaymentProofHref(snapshotOrder?.paymentProof);
   let updatedCode = "";
+  let previousProofHref = "";
+  let uploadedProofHref = "";
 
-  await writeStore((store) => {
+  await writeStore(async (store) => {
     const order = store.orders.find((item) => item.id === orderId);
 
     if (!order) {
       return store;
     }
 
+    const paymentPayload = await fileToPaymentProofPayload(paymentProof, order.code);
+    previousProofHref = getPaymentProofHref(order.paymentProof);
+
     const now = nowIso();
     let subtotalDelta = 0;
     const allowQtyIncrease = !["completed", "cancelled"].includes(order.status);
+    const registerSalesDelta = (productId: string, quantityDelta: number, note: string) => {
+      if (!isSalesStatus(order.status) || quantityDelta === 0) {
+        return;
+      }
+
+      const stock = store.productStocks.find((entry) => entry.productId === productId);
+
+      if (stock) {
+        stock.stock -= quantityDelta;
+        stock.updatedAt = now;
+      }
+
+      store.inventoryMovements.unshift({
+        id: makeId("move"),
+        itemType: "product",
+        itemId: productId,
+        type: quantityDelta > 0 ? "sale" : "correction",
+        quantity: -quantityDelta,
+        note,
+        createdAt: now,
+      });
+    };
 
     for (const [key, value] of formData.entries()) {
-      if (!key.startsWith("increase:")) {
+      if (!key.startsWith("increase:") && !key.startsWith("addItem:")) {
         continue;
       }
 
       const quantityToAdd = Number(String(value ?? "0"));
-      if (!Number.isFinite(quantityToAdd) || quantityToAdd <= 0 || !allowQtyIncrease) {
+      if (!Number.isFinite(quantityToAdd) || quantityToAdd === 0 || !allowQtyIncrease) {
         continue;
       }
 
-      const [, productId, rawVariantType] = key.split(":");
+      const [mode, productId, rawVariantType] = key.split(":");
       const variantType = rawVariantType === "legacy" ? undefined : rawVariantType;
-      const item = order.items.find(
+      const product = store.products.find((entry) => entry.id === productId);
+      const existingItem = order.items.find(
         (entry) =>
           entry.productId === productId &&
           (entry.variantType ?? "legacy") === (variantType ?? "legacy"),
       );
 
-      if (!item) {
+      if (mode === "increase") {
+        if (!existingItem) {
+          continue;
+        }
+
+        const nextQuantity = existingItem.quantity + quantityToAdd;
+        const removesItem = nextQuantity <= 0;
+
+        if (removesItem && order.items.length <= 1) {
+          continue;
+        }
+
+        const appliedDelta = removesItem ? -existingItem.quantity : quantityToAdd;
+
+        if (removesItem) {
+          order.items = order.items.filter(
+            (entry) =>
+              !(
+                entry.productId === existingItem.productId &&
+                (entry.variantType ?? "legacy") === (existingItem.variantType ?? "legacy")
+              ),
+          );
+        } else {
+          existingItem.quantity = nextQuantity;
+          existingItem.pieceCount = product
+            ? getPieceCount(product, existingItem.quantity)
+            : existingItem.pieceCount + appliedDelta * DEFAULT_PACK_SIZE;
+          existingItem.costSnapshot =
+            existingItem.costSnapshot || calculateProductCost(store, existingItem.productId);
+        }
+
+        subtotalDelta += existingItem.unitPrice * appliedDelta;
+        registerSalesDelta(
+          existingItem.productId,
+          appliedDelta,
+          appliedDelta > 0
+            ? `Order ${order.code} qty increased by seller`
+            : `Order ${order.code} qty reduced by seller`,
+        );
         continue;
       }
 
-      const product = store.products.find((entry) => entry.id === item.productId);
-      item.quantity += quantityToAdd;
-      item.pieceCount = product ? getPieceCount(product, item.quantity) : item.pieceCount + quantityToAdd * DEFAULT_PACK_SIZE;
-      item.costSnapshot = item.costSnapshot || calculateProductCost(store, item.productId);
-      subtotalDelta += item.unitPrice * quantityToAdd;
-
-      if (isSalesStatus(order.status)) {
-        const stock = store.productStocks.find((entry) => entry.productId === item.productId);
-
-        if (stock) {
-          stock.stock -= quantityToAdd;
-          stock.updatedAt = now;
-        }
-
-        store.inventoryMovements.unshift({
-          id: makeId("move"),
-          itemType: "product",
-          itemId: item.productId,
-          type: "sale",
-          quantity: -quantityToAdd,
-          note: `Order ${order.code} qty increased by seller`,
-          createdAt: now,
-        });
+      if (!product || !variantType) {
+        continue;
       }
+
+      const typedVariantType = variantType as ProductVariantType;
+      const variant = getVariant(product, typedVariantType);
+      if (!variant || !variant.isActive) {
+        continue;
+      }
+
+      if (existingItem) {
+        existingItem.quantity += quantityToAdd;
+        existingItem.pieceCount = getPieceCount(product, existingItem.quantity);
+        existingItem.costSnapshot =
+          existingItem.costSnapshot || calculateProductCost(store, existingItem.productId);
+        subtotalDelta += existingItem.unitPrice * quantityToAdd;
+      } else {
+        const unitPrice = variant.price || product.price;
+        order.items.push({
+          productId: product.id,
+          productName: order.locale === "en" ? product.nameEn : product.name,
+          variantType: typedVariantType,
+          variantLabel: variant.label,
+          quantity: quantityToAdd,
+          pieceCount: getPieceCount(product, quantityToAdd),
+          unitPrice,
+          costSnapshot: calculateProductCost(store, product.id),
+        });
+        subtotalDelta += unitPrice * quantityToAdd;
+      }
+
+      registerSalesDelta(
+        product.id,
+        quantityToAdd,
+        `Order ${order.code} item added by seller`,
+      );
     }
 
-    if (subtotalDelta > 0) {
-      order.subtotal += subtotalDelta;
-      order.total += subtotalDelta;
+    if (subtotalDelta !== 0) {
+      order.subtotal = order.items.reduce(
+        (sum, item) => sum + item.unitPrice * item.quantity,
+        0,
+      );
+      order.total = order.subtotal + order.deliveryFee;
     }
 
     if (paymentPayload) {
       order.paymentProof = paymentPayload;
+      uploadedProofHref = paymentPayload.url;
     }
 
     if (subtotalDelta > 0 || paymentPayload) {
@@ -502,12 +646,17 @@ export async function editOrderAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerSalesViews();
   if (updatedCode) {
     revalidateOrderArtifacts(updatedCode);
   }
 
-  if (paymentPayload && previousProofHref && isBlobPaymentProof(previousProofHref)) {
+  if (
+    uploadedProofHref &&
+    previousProofHref &&
+    previousProofHref !== uploadedProofHref &&
+    isBlobPaymentProof(previousProofHref)
+  ) {
     try {
       await del(previousProofHref);
     } catch {
@@ -517,6 +666,8 @@ export async function editOrderAction(formData: FormData) {
 }
 
 export async function deleteOrderAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const orderId = textValue(formData, "orderId");
   const confirmation = textValue(formData, "confirmation");
   let deletedCode = "";
@@ -557,13 +708,15 @@ export async function deleteOrderAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerSalesViews();
   if (deletedCode) {
     revalidateOrderArtifacts(deletedCode);
   }
 }
 
 export async function deleteProductImageAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const productId = textValue(formData, "productId");
   const imageId = textValue(formData, "imageId");
 
@@ -599,10 +752,12 @@ export async function deleteProductImageAction(formData: FormData) {
     }
   }
 
-  revalidateSeller();
+  revalidateSellerMenuViews();
 }
 
 export async function setPrimaryProductImageAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const productId = textValue(formData, "productId");
   const imageId = textValue(formData, "imageId");
 
@@ -627,10 +782,12 @@ export async function setPrimaryProductImageAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerMenuViews();
 }
 
 export async function reorderProductImageAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const productId = textValue(formData, "productId");
   const imageId = textValue(formData, "imageId");
   const direction = textValue(formData, "direction");
@@ -671,10 +828,12 @@ export async function reorderProductImageAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerMenuViews();
 }
 
 export async function upsertProductAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const id = textValue(formData, "id");
   const now = nowIso();
   const imageFiles = formData
@@ -693,9 +852,12 @@ export async function upsertProductAction(formData: FormData) {
           textValue(formData, "name"),
         )
       : [];
+  let previousSlug = "";
+  let nextSlug = "";
 
   await writeStore((store) => {
     const existing = store.products.find((product) => product.id === id);
+    previousSlug = existing?.slug || "";
     const blueprint =
       findCatalogBlueprint({
         slug: textValue(formData, "slug"),
@@ -788,6 +950,7 @@ export async function upsertProductAction(formData: FormData) {
       ],
       updatedAt: now,
     };
+    nextSlug = payload.slug;
 
     if (existing) {
       Object.assign(existing, { ...payload, createdAt: existing.createdAt });
@@ -811,10 +974,12 @@ export async function upsertProductAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerProductViews(nextSlug, previousSlug);
 }
 
 export async function addIngredientAction(formData: FormData) {
+  await requireSellerActionSession();
+
   await writeStore((store) => {
     store.ingredients.unshift({
       id: makeId("ing"),
@@ -829,10 +994,12 @@ export async function addIngredientAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function updateIngredientAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const ingredientId = textValue(formData, "ingredientId");
 
   await writeStore((store) => {
@@ -851,10 +1018,12 @@ export async function updateIngredientAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function deleteIngredientAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const ingredientId = textValue(formData, "ingredientId");
 
   await writeStore((store) => {
@@ -875,10 +1044,12 @@ export async function deleteIngredientAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function addSupplierAction(formData: FormData) {
+  await requireSellerActionSession();
+
   await writeStore((store) => {
     store.suppliers.unshift({
       id: makeId("sup"),
@@ -892,10 +1063,12 @@ export async function addSupplierAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function updateSupplierAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const supplierId = textValue(formData, "supplierId");
 
   await writeStore((store) => {
@@ -913,10 +1086,12 @@ export async function updateSupplierAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function deleteSupplierAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const supplierId = textValue(formData, "supplierId");
 
   await writeStore((store) => {
@@ -941,10 +1116,12 @@ export async function deleteSupplierAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function addSupplierPriceAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const ingredientId = textValue(formData, "ingredientId");
   const supplierId = textValue(formData, "supplierId");
 
@@ -967,10 +1144,12 @@ export async function addSupplierPriceAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function updateSupplierPriceAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const priceId = textValue(formData, "priceId");
 
   await writeStore((store) => {
@@ -993,10 +1172,12 @@ export async function updateSupplierPriceAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerCostingViews();
 }
 
 export async function deleteSupplierPriceAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const priceId = textValue(formData, "priceId");
 
   await writeStore((store) => {
@@ -1015,10 +1196,12 @@ export async function deleteSupplierPriceAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerInventoryViews();
 }
 
 export async function upsertRecipeItemAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const productId = textValue(formData, "productId");
   const ingredientId = textValue(formData, "ingredientId");
   const quantity = numberValue(formData, "quantity");
@@ -1041,10 +1224,12 @@ export async function upsertRecipeItemAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerInventoryViews();
 }
 
 export async function adjustIngredientStockAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const ingredientId = textValue(formData, "ingredientId");
   const quantity = numberValue(formData, "quantity");
   const note = textValue(formData, "note");
@@ -1069,10 +1254,12 @@ export async function adjustIngredientStockAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerInventoryViews();
 }
 
 export async function adjustProductStockAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const productId = textValue(formData, "productId");
   const quantity = numberValue(formData, "quantity");
   const note = textValue(formData, "note");
@@ -1098,10 +1285,12 @@ export async function adjustProductStockAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerInventoryViews();
 }
 
 export async function recordProductionAction(formData: FormData) {
+  await requireSellerActionSession();
+
   const productId = textValue(formData, "productId");
   const quantity = numberValue(formData, "quantity");
 
@@ -1173,5 +1362,5 @@ export async function recordProductionAction(formData: FormData) {
     return store;
   });
 
-  revalidateSeller();
+  revalidateSellerInventoryViews();
 }

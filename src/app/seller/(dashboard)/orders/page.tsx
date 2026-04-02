@@ -1,10 +1,10 @@
+import Link from "next/link";
 import { ActionButton } from "@/components/action-button";
 import { PaymentProofPreview } from "@/components/payment-proof-preview";
 import { SellerManualOrderForm } from "@/components/seller-manual-order-form";
 import { SellerOrderActions } from "@/components/seller-order-actions";
 import { updateOrderStatusAction } from "@/app/seller/actions";
 import { statusLabel } from "@/lib/data-store";
-import { getOrderAlertConfigSnapshot } from "@/lib/email";
 import { getPaymentProofHref } from "@/lib/payment-proof";
 import { formatCurrency, formatDateTime } from "@/lib/reports";
 import { readSellerOrdersData } from "@/lib/store-projections";
@@ -43,9 +43,17 @@ function buildWhatsappHelperMessage(order: Awaited<ReturnType<typeof readSellerO
   return `Halo ${order.customerName}, mau kasih kabar hangat buat order ${order.code} ya. Saat ini ${statusCopy[order.status]} Kalau ada catatan kecil atau perubahan, tinggal balas chat ini aja.`;
 }
 
-export default async function SellerOrdersPage() {
-  const { orders, products } = await readSellerOrdersData();
-  const emailAlertConfig = getOrderAlertConfigSnapshot();
+type SellerOrdersPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function SellerOrdersPage({ searchParams }: SellerOrdersPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const pageParam = Array.isArray(resolvedSearchParams?.page)
+    ? resolvedSearchParams?.page[0]
+    : resolvedSearchParams?.page;
+  const currentPage = Math.max(Number(pageParam) || 1, 1);
+  const { orders, products, pagination } = await readSellerOrdersData(currentPage, 10);
 
   return (
     <div className="grid gap-6">
@@ -57,67 +65,25 @@ export default async function SellerOrdersPage() {
         </p>
       </section>
 
-      <section className="surface-card rounded-[2rem] p-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-2xl">Email alert status</h2>
-              <span
-                className={`pill ${
-                  emailAlertConfig.isReady
-                    ? "bg-[#eef7f0] text-[#1f8f4e]"
-                    : "bg-[color:var(--paper-100)] text-[color:var(--brand-900)]"
-                }`}
-              >
-                {emailAlertConfig.isReady ? "Production-ready" : "Perlu dicek"}
-              </span>
-            </div>
-            <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
-              Biar nggak ketipu UI env Vercel yang suka nyembunyiin value, halaman ini nunjukkin
-              runtime config email alert yang benar-benar kebaca server.
-            </p>
-          </div>
-          <div className="grid gap-2 rounded-[1.5rem] bg-white px-5 py-4 text-sm text-[color:var(--ink-700)] sm:min-w-[320px]">
-            <p>
-              <span className="font-bold text-[color:var(--brand-900)]">Resend key:</span>{" "}
-              {emailAlertConfig.resendConfigured ? "terdeteksi" : "belum ada"}
-            </p>
-            <p>
-              <span className="font-bold text-[color:var(--brand-900)]">From:</span>{" "}
-              {emailAlertConfig.senderMasked}
-            </p>
-            <p>
-              <span className="font-bold text-[color:var(--brand-900)]">To:</span>{" "}
-              {emailAlertConfig.recipientMasked}
-            </p>
-          </div>
-        </div>
-
-        <div className="mt-4 rounded-[1.5rem] border border-[color:var(--paper-300)] bg-white px-5 py-4 text-sm leading-7 text-[color:var(--ink-700)]">
-          {emailAlertConfig.usesSandboxSender ? (
-            <p>
-              Sender masih pakai sandbox `resend.dev`. Ini aman cuma untuk testing ke email akun
-              Resend sendiri. Kalau mau notif seller asli, isi `ORDER_ALERT_EMAIL_FROM` dengan
-              alamat dari domain verified, misalnya `orders@mail.risol-club.site`.
-            </p>
-          ) : emailAlertConfig.isReady ? (
-            <p>
-              Konfigurasi email alert sudah kelihatan siap dipakai. Tinggal bikin order test baru,
-              lalu cek inbox dan Resend logs kalau perlu.
-            </p>
-          ) : (
-            <p>
-              Ada bagian config yang belum kebaca penuh. Pastikan `RESEND_API_KEY`,
-              `ORDER_ALERT_EMAIL_FROM`, dan `ORDER_ALERT_EMAIL_TO` sudah terisi di environment
-              deployment yang kamu pakai.
-            </p>
-          )}
-        </div>
-      </section>
-
       <SellerManualOrderForm products={products} />
 
       <section className="grid gap-4">
+        <div className="surface-card rounded-[2rem] p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-bold text-[color:var(--brand-900)]">Database orders</p>
+              <p className="mt-1 text-sm text-[color:var(--ink-700)]">
+                Menampilkan {orders.length ? (pagination.page - 1) * pagination.pageSize + 1 : 0}
+                {" - "}
+                {(pagination.page - 1) * pagination.pageSize + orders.length} dari {pagination.totalCount} order.
+              </p>
+            </div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-black uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+              Page {pagination.page} / {pagination.totalPages}
+            </div>
+          </div>
+        </div>
+
         {orders.map((order) => {
           const whatsappMessage = buildWhatsappHelperMessage(order);
 
@@ -232,7 +198,7 @@ export default async function SellerOrdersPage() {
                 </div>
 
                 <div className="grid gap-4">
-                  <SellerOrderActions order={order} />
+                  <SellerOrderActions order={order} products={products} />
 
                   <form action={updateOrderStatusAction} className="rounded-[1.5rem] bg-white p-4">
                     <input type="hidden" name="orderId" value={order.id} />
@@ -260,6 +226,46 @@ export default async function SellerOrdersPage() {
             </article>
           );
         })}
+
+        {orders.length === 0 ? (
+          <div className="surface-card rounded-[2rem] p-6 text-sm leading-7 text-[color:var(--ink-700)]">
+            Belum ada order di halaman ini. Coba pindah page lain atau buat order baru dari tombol di atas.
+          </div>
+        ) : null}
+      </section>
+
+      <section className="surface-card rounded-[2rem] p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-[color:var(--ink-700)]">
+            Queue dipecah per halaman biar seller page tetap ringan walau order terus bertambah.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            {pagination.page > 1 ? (
+              <Link
+                href={`/seller/orders?page=${pagination.page - 1}`}
+                className="rounded-full border border-[color:var(--paper-300)] bg-white px-4 py-3 text-sm font-bold text-[color:var(--brand-900)]"
+              >
+                Previous
+              </Link>
+            ) : (
+              <span className="rounded-full border border-[color:var(--paper-300)] bg-[color:var(--paper-100)] px-4 py-3 text-sm font-bold text-[color:var(--ink-700)] opacity-60">
+                Previous
+              </span>
+            )}
+            {pagination.page < pagination.totalPages ? (
+              <Link
+                href={`/seller/orders?page=${pagination.page + 1}`}
+                className="rounded-full bg-[color:var(--brand-900)] px-4 py-3 text-sm font-bold text-white"
+              >
+                Next
+              </Link>
+            ) : (
+              <span className="rounded-full bg-[color:var(--paper-100)] px-4 py-3 text-sm font-bold text-[color:var(--ink-700)] opacity-60">
+                Next
+              </span>
+            )}
+          </div>
+        </div>
       </section>
     </div>
   );

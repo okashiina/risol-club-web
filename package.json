@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "clean": "node -e \"const fs=require('node:fs');const path=require('node:path');for (const target of ['.next','dist-next','playwright-report','test-results','.next-start.log','.next-start.err.log']) { const full=path.join(process.cwd(), target); if (fs.existsSync(full)) fs.rmSync(full,{recursive:true,force:true}); }\"",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type RevenuePulsePoint = {
   key: string;
@@ -32,18 +32,32 @@ function formatCurrency(value: number) {
 }
 
 export function RevenuePulseChart({ series }: RevenuePulseChartProps) {
-  const defaultIndex = Math.max(
-    series.findLastIndex((item) => item.revenue > 0 || item.profit !== 0),
-    0,
-  );
-  const [activeIndex, setActiveIndex] = useState(defaultIndex);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const chartRef = useRef<HTMLDivElement | null>(null);
   const maxSeriesValue = useMemo(
     () => Math.max(...series.flatMap((item) => [item.revenue, Math.abs(item.profit)]), 1),
     [series],
   );
 
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!chartRef.current?.contains(event.target as Node)) {
+        setActiveIndex(null);
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+    };
+  }, []);
+
   return (
-    <div className="rounded-[1.8rem] bg-white p-5">
+    <div
+      ref={chartRef}
+      className="rounded-[1.8rem] bg-white p-5"
+      onMouseLeave={() => setActiveIndex(null)}
+    >
       <div className="mb-5 flex flex-wrap gap-4 text-xs font-bold uppercase tracking-[0.16em]">
         <span className="inline-flex items-center gap-2 text-[color:var(--ink-700)]">
           <span className="h-3 w-3 rounded-full bg-[#c72f27]" />
@@ -52,6 +66,9 @@ export function RevenuePulseChart({ series }: RevenuePulseChartProps) {
         <span className="inline-flex items-center gap-2 text-[color:var(--ink-700)]">
           <span className="h-3 w-3 rounded-full bg-[#2d9556]" />
           Profit
+        </span>
+        <span className="inline-flex items-center gap-2 text-[color:var(--ink-700)]/80">
+          Hover untuk desktop, tap untuk mobile
         </span>
       </div>
 
@@ -66,15 +83,23 @@ export function RevenuePulseChart({ series }: RevenuePulseChartProps) {
             <div key={item.key} className="grid h-full grid-rows-[1fr_auto] gap-3">
               <button
                 type="button"
-                onClick={() => setActiveIndex(index)}
+                onClick={() =>
+                  setActiveIndex((current) => (current === index ? null : index))
+                }
                 onMouseEnter={() => setActiveIndex(index)}
                 onFocus={() => setActiveIndex(index)}
+                onBlur={(event) => {
+                  if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                    setActiveIndex(null);
+                  }
+                }}
                 className={`group relative flex items-end justify-center gap-2 rounded-[1.4rem] px-2 pb-3 pt-4 text-left transition duration-300 ${
                   isActive
                     ? "bg-[linear-gradient(180deg,rgba(255,244,241,0.98),rgba(255,255,255,0.98))] shadow-[0_18px_38px_rgba(185,30,30,0.12)]"
                     : "bg-[color:var(--paper-100)] hover:bg-[linear-gradient(180deg,rgba(255,244,241,0.9),rgba(255,255,255,0.92))]"
                 }`}
                 aria-label={`${item.label}: revenue ${formatCurrency(item.revenue)}, profit ${formatCurrency(item.profit)}`}
+                aria-pressed={isActive}
               >
                 {isActive ? (
                   <div className="pointer-events-none absolute -top-24 left-1/2 z-10 w-[10.75rem] -translate-x-1/2 rounded-[1.25rem] border border-[rgba(185,30,30,0.12)] bg-[rgba(255,255,255,0.98)] p-3 shadow-[0_18px_40px_rgba(80,24,24,0.12)] backdrop-blur">
