@@ -28,7 +28,7 @@ export default async function CheckoutPage({
         <h1 className="mt-4 font-display text-4xl">
           {locale === "en"
             ? "A gentle checkout flow that still feels clean on a phone."
-            : "Checkout yang ringan, rapi, dan tetap nyaman dibuka dari HP."}
+            : "Tinggal selangkah lagi! Selesaikan pembayaranmu biar risolnya bisa langsung kita proses."}
         </h1>
       </div>
 
