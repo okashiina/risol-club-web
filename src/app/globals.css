@@ -1,20 +1,26 @@
 @import "tailwindcss";
 
 :root {
-  --paper-100: #fff8f6;
-  --paper-200: #fff1ec;
-  --paper-300: #f2ddd6;
-  --paper-400: #e6c4ba;
-  --ink-900: #381815;
-  --ink-700: #6c3b35;
-  --brand-900: #b91e1e;
-  --brand-800: #cc3b33;
-  --brand-700: #d66d64;
-  --brand-600: #e9948d;
-  --accent-gold: #e7a93d;
-  --accent-cream: #fff7ea;
-  --font-body: "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
-  --font-display: "Cooper Black", "Bookman Old Style", "Trebuchet MS", serif;
+  --paper-100: #faf4e4;
+  --paper-200: #fff9ef;
+  --paper-300: #e9e0d6;
+  --paper-400: #c29069;
+  --ink-900: #6b3430;
+  --ink-700: #8d5b55;
+  --brand-900: #ad3531;
+  --brand-800: #8b472c;
+  --brand-700: #9a5643;
+  --brand-600: #c29069;
+  --accent-gold: #eb9839;
+  --accent-cream: #fff9ef;
+  --hero-copy: #ad3531;
+  --hero-kicker: #ad3531;
+  --font-body: var(--font-dm-sans), "Avenir Next", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-heading: "Arial Unicode MS", "Arial Unicode", Arial, sans-serif;
+  --font-note: var(--font-gaegu), "Comic Sans MS", "Marker Felt", cursive;
+  --font-promo: "Sailors", var(--font-heading);
+  --font-display: var(--font-heading);
+  --font-emoji: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
 }
 
 @theme inline {
@@ -33,12 +39,12 @@ html {
 
 body {
   background:
-    radial-gradient(circle at top left, rgba(255, 212, 205, 0.8), transparent 32%),
-    radial-gradient(circle at top right, rgba(255, 233, 191, 0.7), transparent 28%),
-    radial-gradient(circle at 20% 80%, rgba(185, 30, 30, 0.08), transparent 18%),
-    linear-gradient(180deg, #fffdfa 0%, #fff8f6 100%);
+    radial-gradient(circle at top left, rgba(235, 152, 57, 0.18), transparent 28%),
+    radial-gradient(circle at top right, rgba(139, 71, 44, 0.12), transparent 24%),
+    radial-gradient(circle at 15% 78%, rgba(173, 53, 49, 0.08), transparent 20%),
+    linear-gradient(180deg, #fffdf8 0%, #faf4e4 52%, #fff9ef 100%);
   color: var(--ink-900);
-  font-family: var(--font-body);
+  font-family: var(--font-body), var(--font-emoji);
 }
 
 a {
@@ -53,38 +59,62 @@ img {
 
 input,
 select,
-textarea {
+textarea,
+button {
   font-size: 16px;
+  font-family: inherit;
 }
 
 ::selection {
   background: rgba(185, 30, 30, 0.14);
 }
 
-.font-display {
+.font-display,
+.font-heading {
   font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.font-note {
+  font-family: var(--font-note);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.font-promo {
+  font-family: var(--font-promo);
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+}
+
+.emoji-ios {
+  font-family: var(--font-emoji);
+  display: inline-block;
+  transform: translateY(0.04em);
 }
 
 .surface-card {
-  border: 1px solid rgba(197, 101, 94, 0.14);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 20px 60px rgba(97, 46, 38, 0.08);
+  border: 1px solid rgba(173, 53, 49, 0.1);
+  background: rgba(255, 253, 248, 0.88);
+  box-shadow: 0 20px 60px rgba(124, 58, 48, 0.08);
   backdrop-filter: blur(16px);
 }
 
 .hero-surface {
   background:
-    linear-gradient(135deg, rgba(255, 250, 244, 0.96), rgba(255, 238, 228, 0.9)),
+    linear-gradient(135deg, rgba(255, 251, 245, 0.98), rgba(250, 244, 228, 0.94)),
     linear-gradient(180deg, rgba(255, 255, 255, 0.7), rgba(255, 255, 255, 0.85));
-  border: 1px solid rgba(185, 30, 30, 0.08);
-  box-shadow: 0 24px 80px rgba(95, 40, 31, 0.1);
+  border: 1px solid rgba(173, 53, 49, 0.08);
+  box-shadow: 0 24px 80px rgba(107, 52, 48, 0.1);
 }
 
 .mesh-card {
   background:
-    radial-gradient(circle at top right, rgba(231, 169, 61, 0.35), transparent 28%),
-    radial-gradient(circle at bottom left, rgba(214, 109, 100, 0.24), transparent 32%),
-    linear-gradient(180deg, rgba(255, 252, 249, 0.95), rgba(255, 244, 239, 0.95));
+    radial-gradient(circle at top right, rgba(235, 152, 57, 0.28), transparent 28%),
+    radial-gradient(circle at bottom left, rgba(139, 71, 44, 0.14), transparent 32%),
+    linear-gradient(180deg, rgba(255, 252, 247, 0.96), rgba(255, 247, 238, 0.96));
 }
 
 .field {
@@ -120,6 +150,8 @@ textarea {
   padding: 0.5rem 0.9rem;
   font-size: 0.825rem;
   font-weight: 700;
+  font-family: var(--font-heading);
+  letter-spacing: 0.02em;
 }
 
 .btn-primary {

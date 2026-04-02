@@ -47,7 +47,7 @@ export default async function MenuDetailPage({
           <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
             {locale === "en" ? product.prepLabelEn : product.prepLabel}
           </p>
-          <h1 className="mt-4 font-display text-4xl leading-tight">
+          <h1 className="mt-4 font-heading text-4xl leading-tight text-[color:var(--brand-900)]">
             {locale === "en" ? product.nameEn : product.name}
           </h1>
           <p className="mt-4 text-sm leading-7 text-[color:var(--ink-700)]">
@@ -67,7 +67,7 @@ export default async function MenuDetailPage({
                       : "Paling enak buat stok di freezer lalu digoreng nanti."}
                   </p>
                 </div>
-                <p className="font-display text-3xl text-[color:var(--brand-900)]">
+                <p className="font-heading text-3xl text-[color:var(--brand-900)]">
                   {formatCurrency(frozen?.price ?? getDisplayPrice(product))}
                 </p>
               </div>
@@ -84,7 +84,7 @@ export default async function MenuDetailPage({
                       : "Digoreng hangat dan siap langsung dinikmati."}
                   </p>
                 </div>
-                <p className="font-display text-3xl text-[color:var(--brand-900)]">
+                <p className="font-heading text-3xl text-[color:var(--brand-900)]">
                   {formatCurrency(fried?.price ?? getDisplayPrice(product))}
                 </p>
               </div>

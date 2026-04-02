@@ -29,6 +29,7 @@ export function LanguageToggle({ locale }: LanguageToggleProps) {
         <button
           key={value}
           type="button"
+          suppressHydrationWarning
           onClick={() => switchLocale(value)}
           className={`rounded-full px-3 py-2 transition ${
             locale === value

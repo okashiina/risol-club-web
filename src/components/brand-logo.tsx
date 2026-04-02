@@ -42,11 +42,11 @@ export function BrandLogo({
         />
       </span>
       <span className="flex flex-col">
-        <span className="font-display text-lg leading-none text-[color:var(--brand-900)]">
+        <span className="font-heading text-lg leading-none text-[color:var(--brand-900)]">
           Risol Club
         </span>
         {!compact ? (
-          <span className="text-xs text-[color:var(--brand-700)]">
+          <span className="font-note text-xs text-[color:var(--brand-800)]">
             {isCustomer ? "handmade comfort snacks" : "seller dashboard"}
           </span>
         ) : null}

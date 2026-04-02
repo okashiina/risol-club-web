@@ -6,6 +6,8 @@ import { ProductGallery } from "@/components/product-gallery";
 import { findCatalogBlueprintBySlug, getPieceCount } from "@/lib/catalog";
 import { Locale, Product, ProductVariantType } from "@/lib/types";
 
+const MIDDLE_DOT = "\u00b7";
+
 type CheckoutFormProps = {
   locale: Locale;
   products: Product[];
@@ -149,7 +151,7 @@ export function CheckoutForm({
               <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
                 {locale === "en" ? "Choose your packs" : "Pilih pack favoritmu"}
               </p>
-              <h2 className="mt-3 font-display text-2xl sm:text-3xl">
+              <h2 className="mt-3 font-display text-2xl text-[color:var(--brand-900)] sm:text-3xl">
                 {locale === "en"
                   ? "Frozen or fried, every quantity is always packed as 3 pieces."
                   : "Mau frozen atau fried, setiap 1 qty selalu berisi 3 pcs."}
@@ -184,7 +186,9 @@ export function CheckoutForm({
                               ? product.prepLabelEn
                               : product.prepLabel}
                           </p>
-                          <h3 className="mt-2 font-display text-3xl">{name}</h3>
+                          <h3 className="mt-2 font-display text-3xl text-[color:var(--brand-900)]">
+                            {name}
+                          </h3>
                           <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
                             {description}
                           </p>
@@ -238,7 +242,7 @@ export function CheckoutForm({
                                   <div className="text-sm text-[color:var(--ink-700)]">
                                     {quantity > 0 ? (
                                       <span>
-                                        {quantity} qty · {getPieceCount(product, quantity)} pcs
+                                        {quantity} qty {MIDDLE_DOT} {getPieceCount(product, quantity)} pcs
                                       </span>
                                     ) : (
                                       <span>
@@ -427,7 +431,7 @@ export function CheckoutForm({
                         {item.productName}
                       </p>
                       <p className="mt-1 text-sm text-[color:var(--ink-700)]">
-                        {item.variantLabel} · {item.quantity} qty · {item.pieceCount} pcs
+                        {item.variantLabel} {MIDDLE_DOT} {item.quantity} qty {MIDDLE_DOT} {item.pieceCount} pcs
                       </p>
                     </div>
                     <p className="text-sm font-black text-[color:var(--brand-900)]">

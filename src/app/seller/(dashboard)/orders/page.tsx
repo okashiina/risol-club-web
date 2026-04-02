@@ -20,22 +20,25 @@ const statusOptions = [
   "cancelled",
 ] as const;
 
+const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
+const MIDDLE_DOT = "\u00b7";
+
 function buildWhatsappHelperMessage(order: Awaited<ReturnType<typeof readSellerOrdersData>>["orders"][number]) {
   const statusCopy: Record<(typeof statusOptions)[number], string> = {
     pending_payment:
-      "pesanannya masih nunggu pembayaran dulu ya 😊🙌 Begitu transfernya masuk, kami lanjut cek secepatnya.",
+      `pesanannya masih nunggu pembayaran dulu ya ${SMILING_HANDS_EMOJI} Begitu transfernya masuk, kami lanjut cek secepatnya.`,
     payment_review:
-      "bukti bayarnya sudah kami terima dan lagi dicek 😊🙌 Sebentar lagi kami kabari lanjutannya ya.",
+      `bukti bayarnya sudah kami terima dan lagi dicek ${SMILING_HANDS_EMOJI} Sebentar lagi kami kabari lanjutannya ya.`,
     confirmed:
-      "ordernya sudah aman masuk antrean produksi 😊🙌 Tinggal tunggu kabar hangat berikutnya dari kami.",
+      `ordernya sudah aman masuk antrean produksi ${SMILING_HANDS_EMOJI} Tinggal tunggu kabar hangat berikutnya dari kami.`,
     in_production:
-      "pesanannya lagi diracik di dapur kami 😊🙌 Sudah masuk fase wangi-wangi enak.",
+      `pesanannya lagi diracik di dapur kami ${SMILING_HANDS_EMOJI} Sudah masuk fase wangi-wangi enak.`,
     ready_for_pickup:
-      "ordernya sudah siap diambil 😊🙌 Kalau mau confirm jam pickup, tinggal balas chat ini ya.",
+      `ordernya sudah siap diambil ${SMILING_HANDS_EMOJI} Kalau mau confirm jam pickup, tinggal balas chat ini ya.`,
     out_for_delivery:
-      "ordernya lagi jalan ke kamu 😊🙌 Semoga sampai dengan selamat dan tetap cantik.",
+      `ordernya lagi jalan ke kamu ${SMILING_HANDS_EMOJI} Semoga sampai dengan selamat dan tetap cantik.`,
     completed:
-      "ordernya sudah selesai 😊🙌 Makasih banyak sudah jajan di Risol Club, semoga bikin hari kamu makin enak.",
+      `ordernya sudah selesai ${SMILING_HANDS_EMOJI} Makasih banyak sudah jajan di Risol Club, semoga bikin hari kamu makin enak.`,
     cancelled:
       "ordernya kami tandai batal dulu ya. Kalau mau dibantu bikin order baru, tinggal kabarin saja.",
   };
@@ -119,7 +122,7 @@ export default async function SellerOrdersPage({ searchParams }: SellerOrdersPag
                     rel="noreferrer"
                     className="rounded-full bg-white px-4 py-3 text-center text-sm font-bold text-[color:var(--brand-900)]"
                   >
-                    Kirim update hangat 😊🙌
+                    {`Kirim update hangat ${SMILING_HANDS_EMOJI}`}
                   </a>
                   {order.paymentProof ? (
                     <a
@@ -147,7 +150,7 @@ export default async function SellerOrdersPage({ searchParams }: SellerOrdersPag
                             {item.productName}
                           </span>
                           <p className="text-xs text-[color:var(--ink-700)]">
-                            {item.variantLabel} • {item.quantity} qty • {item.pieceCount} pcs
+                            {item.variantLabel} {MIDDLE_DOT} {item.quantity} qty {MIDDLE_DOT} {item.pieceCount} pcs
                           </p>
                         </div>
                         <span className="font-bold">

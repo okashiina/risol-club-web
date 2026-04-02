@@ -80,6 +80,7 @@ export function ProductGallery({
           <>
             <button
               type="button"
+              suppressHydrationWarning
               onClick={() => go(index - 1)}
               className="absolute left-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/88 text-[color:var(--brand-900)] shadow-[0_12px_24px_rgba(185,30,30,0.16)] transition hover:scale-[1.03]"
               aria-label="Previous photo"
@@ -88,6 +89,7 @@ export function ProductGallery({
             </button>
             <button
               type="button"
+              suppressHydrationWarning
               onClick={() => go(index + 1)}
               className="absolute right-3 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-white/88 text-[color:var(--brand-900)] shadow-[0_12px_24px_rgba(185,30,30,0.16)] transition hover:scale-[1.03]"
               aria-label="Next photo"
@@ -99,12 +101,13 @@ export function ProductGallery({
 
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-[rgba(70,18,18,0.35)] via-transparent to-transparent px-4 pb-4 pt-12">
           <div className="flex items-center justify-between gap-4">
-            <p className="font-display text-lg text-white">{name}</p>
+            <p className="font-heading text-lg text-white">{name}</p>
             <div className="flex items-center gap-2">
               {safeImages.map((image, imageIndex) => (
                 <button
                   key={`${image.id}-dot`}
                   type="button"
+                  suppressHydrationWarning
                   onClick={() => go(imageIndex)}
                   className={`h-2.5 rounded-full transition-all ${
                     imageIndex === index ? "w-8 bg-white" : "w-2.5 bg-white/45"
@@ -123,6 +126,7 @@ export function ProductGallery({
             <button
               key={`${image.id}-thumb`}
               type="button"
+              suppressHydrationWarning
               onClick={() => go(imageIndex)}
               className={`relative overflow-hidden rounded-[1.25rem] border transition ${
                 imageIndex === index

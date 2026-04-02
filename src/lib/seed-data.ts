@@ -2,6 +2,8 @@ import { cloneImages, cloneVariants, DEFAULT_PACK_SIZE } from "@/lib/catalog";
 import { StoreData } from "@/lib/types";
 
 const now = "2026-03-31T10:00:00.000Z";
+const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
+const MIDDLE_DOT = "\u00b7";
 
 export const seedData: StoreData = {
   settings: {
@@ -162,15 +164,15 @@ export const seedData: StoreData = {
       shortDescriptionEn:
         "A creamy savory trio with smoked beef, mayo, cheese, and egg in a 3-piece pack.",
       description:
-        "Smoked Beef Mayo jadi menu comfort snack yang paling aman buat ramai-ramai. Rasanya gurih, creamy, dan familiar, dengan format 1 qty = 3 pcs jadi enak buat stok freezer ataupun langsung digoreng hangat buat nyemil sore 😊🙌",
+        `Smoked Beef Mayo jadi menu comfort snack yang paling aman buat ramai-ramai. Rasanya gurih, creamy, dan familiar, dengan format 1 qty = 3 pcs jadi enak buat stok freezer ataupun langsung digoreng hangat buat nyemil sore ${SMILING_HANDS_EMOJI}`,
       descriptionEn:
         "Smoked Beef Mayo is the crowd-pleasing comfort snack: savory, creamy, familiar, and sold in 3-piece packs that work well for freezer stock or a warm fried snack.",
       price: 28000,
       featured: true,
       isActive: true,
       accent: "from-[#ffe4dd] via-white to-[#ffd9c6]",
-      prepLabel: "Pre-order batch • 1 qty = 3 pcs",
-      prepLabelEn: "Pre-order batch • 1 qty = 3 pcs",
+      prepLabel: `Pre-order batch ${MIDDLE_DOT} 1 qty = 3 pcs`,
+      prepLabelEn: `Pre-order batch ${MIDDLE_DOT} 1 qty = 3 pcs`,
       packSize: DEFAULT_PACK_SIZE,
       variants: cloneVariants([
         { type: "frozen", label: "Frozen", price: 28000 },
@@ -197,15 +199,15 @@ export const seedData: StoreData = {
       shortDescriptionEn:
         "Chocolate crunch meets soft cheese in a sweet-savory pack that is hard to stop eating.",
       description:
-        "Risol Choco Cheese hadir buat kamu yang suka dessert snack dengan tekstur playful. Ada sensasi crunchy cokelat, ada lembut keju, dan setiap 1 qty selalu datang dalam 1 pack isi 3 pcs yang cocok buat dibagi atau dimakan sendiri pelan-pelan 😊🙌",
+        `Risol Choco Cheese hadir buat kamu yang suka dessert snack dengan tekstur playful. Ada sensasi crunchy cokelat, ada lembut keju, dan setiap 1 qty selalu datang dalam 1 pack isi 3 pcs yang cocok buat dibagi atau dimakan sendiri pelan-pelan ${SMILING_HANDS_EMOJI}`,
       descriptionEn:
         "Choco Cheese Risol is made for playful dessert-snack cravings. Expect a chocolate crunch, a soft cheese finish, and 1 order quantity always packed as 3 pieces for sharing or savoring slowly.",
       price: 28000,
       featured: true,
       isActive: true,
       accent: "from-[#fff0df] via-white to-[#ffe4d8]",
-      prepLabel: "Pre-order batch • 1 qty = 3 pcs",
-      prepLabelEn: "Pre-order batch • 1 qty = 3 pcs",
+      prepLabel: `Pre-order batch ${MIDDLE_DOT} 1 qty = 3 pcs`,
+      prepLabelEn: `Pre-order batch ${MIDDLE_DOT} 1 qty = 3 pcs`,
       packSize: DEFAULT_PACK_SIZE,
       variants: cloneVariants([
         { type: "frozen", label: "Frozen", price: 28000 },

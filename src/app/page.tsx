@@ -8,6 +8,9 @@ import { getLocale } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/reports";
 import { readPublicCatalogData } from "@/lib/store-projections";
 
+const TASTY_EMOJI = "\u{1F60B}";
+const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
+
 export default async function Home() {
   const locale = await getLocale();
   const { settings, products } = await readPublicCatalogData();
@@ -32,15 +35,30 @@ export default async function Home() {
       <main className="page-shell pb-16 pt-6">
         <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
           <div className="hero-surface grain-overlay overflow-hidden rounded-[2.9rem] p-6 sm:p-8">
-            <p className="pill bg-white/90 text-[color:var(--brand-900)]">
-              {locale === "en" ? "Small-batch risol pre-order" : "Pre-order risol small batch"}
-            </p>
-            <h1 className="mt-4 max-w-3xl font-display text-4xl leading-tight sm:text-6xl">
-              {locale === "en"
-                ? "Two comfort-snack stars, ready in frozen or fried packs that feel instantly giftable."
-                : "Dua comfort snack andalan, siap dipesan frozen atau fried dalam pack yang rasanya manis buat dibawa pulang."}
+            <div className="flex flex-wrap items-center gap-3">
+              <p className="pill bg-white/92 px-5 py-3 tracking-normal text-[color:var(--brand-900)] shadow-[0_12px_30px_rgba(173,53,49,0.12)]">
+                Pre-order
+              </p>
+              <p className="font-note text-base text-[color:var(--hero-kicker)] sm:text-lg">
+                {locale === "en" ? "Tangsel comfort snacks!" : "Comfort snack andalan Tangsel!"}
+              </p>
+            </div>
+            <h1 className="mt-5 max-w-3xl font-heading text-4xl leading-[1.02] text-[color:var(--hero-copy)] sm:text-6xl">
+              {locale === "en" ? (
+                <>
+                  South Tangerang&apos;s comfort-snack favorite. Take frozen packs home for later,
+                  or ask for them freshly fried so they&apos;re ready to bite into{" "}
+                  <span className="emoji-ios">{TASTY_EMOJI}</span>
+                </>
+              ) : (
+                <>
+                  Comfort snack andalan Tangsel! Bawa pulang frozen buat stok, atau minta
+                  digorengin sekalian biar tinggal hap{" "}
+                  <span className="emoji-ios">{TASTY_EMOJI}</span>
+                </>
+              )}
             </h1>
-            <p className="mt-5 max-w-2xl text-base leading-8 text-[color:var(--ink-700)] sm:text-lg">
+            <p className="mt-5 max-w-2xl text-sm leading-7 text-[color:var(--ink-700)] sm:text-[0.98rem]">
               {locale === "en"
                 ? "Pick your flavor, choose the serving style, upload payment proof, and keep the receipt so you can track the order again anytime."
                 : "Pilih rasa, tentukan mau frozen atau fried, upload bukti transfer, lalu simpan receipt supaya progres order gampang dicek lagi kapan pun."}
@@ -70,13 +88,11 @@ export default async function Home() {
                     priority
                   />
                 </div>
-                <p className="text-center text-xs font-black uppercase tracking-[0.2em] text-[color:var(--brand-900)]">
+                <p className="text-center font-note text-lg text-[color:var(--brand-800)]">
                   {locale === "en" ? "From our tiny kitchen" : "Dari dapur kecil kami"}
                 </p>
-                <p className="mt-3 text-center text-sm font-semibold leading-7 text-[color:var(--ink-700)]">
-                  {locale === "en"
-                    ? settings.storyEn
-                    : settings.story}
+                <p className="mt-3 text-center text-sm leading-7 text-[color:var(--ink-700)] sm:text-[0.98rem]">
+                  {locale === "en" ? settings.storyEn : settings.story}
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
@@ -92,7 +108,7 @@ export default async function Home() {
                       <p className="text-sm font-semibold text-[color:var(--brand-900)]">
                         {locale === "en" ? product.prepLabelEn : product.prepLabel}
                       </p>
-                      <h2 className="mt-3 font-display text-2xl">
+                      <h2 className="mt-3 font-heading text-2xl text-[color:var(--brand-900)]">
                         {locale === "en" ? product.nameEn : product.name}
                       </h2>
                       <p className="mt-2 text-sm text-[color:var(--ink-700)]">
@@ -194,8 +210,8 @@ export default async function Home() {
                 </p>
                 <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
                   {locale === "en"
-                    ? "Every page is tuned to feel ringan, manis, dan gampang diikuti: pick your favorite pack, send the transfer, keep the receipt, lalu balik lagi kapan pun buat cek progresnya 😊🙌"
-                    : "Setiap bagiannya dibuat supaya terasa ringan, manis, dan gampang diikuti: pilih pack favoritmu, kirim transfer, simpan receipt, lalu balik lagi kapan pun buat cek progresnya 😊🙌"}
+                    ? `Every page is tuned to feel ringan, manis, dan gampang diikuti: pick your favorite pack, send the transfer, keep the receipt, lalu balik lagi kapan pun buat cek progresnya ${SMILING_HANDS_EMOJI}`
+                    : `Setiap bagiannya dibuat supaya terasa ringan, manis, dan gampang diikuti: pilih pack favoritmu, kirim transfer, simpan receipt, lalu balik lagi kapan pun buat cek progresnya ${SMILING_HANDS_EMOJI}`}
                 </p>
               </div>
             </div>
@@ -235,7 +251,7 @@ export default async function Home() {
                         <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
                           {locale === "en" ? product.prepLabelEn : product.prepLabel}
                         </p>
-                        <h3 className="mt-2 font-display text-4xl">
+                        <h3 className="mt-2 font-heading text-4xl text-[color:var(--brand-900)]">
                           {locale === "en" ? product.nameEn : product.name}
                         </h3>
                         <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
@@ -248,7 +264,7 @@ export default async function Home() {
                           <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
                             Frozen
                           </p>
-                          <p className="mt-2 font-display text-3xl text-[color:var(--brand-900)]">
+                          <p className="mt-2 font-heading text-3xl text-[color:var(--brand-900)]">
                             {formatCurrency(frozen?.price ?? getDisplayPrice(product))}
                           </p>
                           <p className="mt-2 text-sm text-[color:var(--ink-700)]">
@@ -261,7 +277,7 @@ export default async function Home() {
                           <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
                             Fried
                           </p>
-                          <p className="mt-2 font-display text-3xl text-[color:var(--brand-900)]">
+                          <p className="mt-2 font-heading text-3xl text-[color:var(--brand-900)]">
                             {formatCurrency(fried?.price ?? getDisplayPrice(product))}
                           </p>
                           <p className="mt-2 text-sm text-[color:var(--ink-700)]">
@@ -302,7 +318,7 @@ export default async function Home() {
             <p className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
               {locale === "en" ? "Find your receipt again" : "Cari receipt lagi"}
             </p>
-            <h2 className="mt-4 font-display text-3xl">
+            <h2 className="mt-4 font-heading text-3xl text-[color:var(--brand-900)]">
               {locale === "en"
                 ? "Already ordered? Reopen the receipt whenever you need it."
                 : "Sudah pernah order? Receipt bisa dibuka lagi kapan pun kamu perlu."}
@@ -325,6 +341,7 @@ export default async function Home() {
                   name="code"
                   className="field"
                   placeholder="RC-0104-001"
+                  suppressHydrationWarning
                   required
                 />
               </div>
@@ -332,10 +349,20 @@ export default async function Home() {
                 <label className="label" htmlFor="track-name">
                   {locale === "en" ? "Customer name" : "Nama pemesan"}
                 </label>
-                <input id="track-name" name="name" className="field" required />
+                <input
+                  id="track-name"
+                  name="name"
+                  className="field"
+                  suppressHydrationWarning
+                  required
+                />
               </div>
             </div>
-            <button type="submit" className="btn-primary mt-5 px-5 py-4 font-bold">
+            <button
+              type="submit"
+              suppressHydrationWarning
+              className="btn-primary mt-5 px-5 py-4 font-bold"
+            >
               {locale === "en" ? "Open my receipt" : "Buka receipt saya"}
             </button>
           </form>

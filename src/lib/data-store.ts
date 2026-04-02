@@ -47,10 +47,11 @@ const LEGACY_SELLER_WHATSAPP = "6285159134699";
 const LEGACY_SELLER_WHATSAPP_DISPLAY = "085159134699";
 const DEFAULT_SELLER_WHATSAPP = "6285183151407";
 const DEFAULT_SELLER_WHATSAPP_DISPLAY = "085183151407";
+const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
 const DEFAULT_STORY =
-  "Dari dapur kecil kami, setiap batch diracik buat nemenin momen hangat: buat ngemil santai, kirim hadiah kecil, atau stok comfort snack yang rasanya bikin senyum 😊🙌";
+  `Dari dapur kecil kami, setiap batch diracik buat nemenin momen hangat: buat ngemil santai, kirim hadiah kecil, atau stok comfort snack yang rasanya bikin senyum ${SMILING_HANDS_EMOJI}`;
 const DEFAULT_STORY_EN =
-  "From our tiny kitchen, every batch is made to bring a warm little pause: easy to gift, easy to crave, and always meant to feel comforting 😊🙌";
+  `From our tiny kitchen, every batch is made to bring a warm little pause: easy to gift, easy to crave, and always meant to feel comforting ${SMILING_HANDS_EMOJI}`;
 
 let writeQueue = Promise.resolve<StoreData | null>(null);
 let databaseReadyPromise: Promise<void> | null = null;
