@@ -20,56 +20,31 @@ const statusOptions = [
   "cancelled",
 ] as const;
 
-const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
 const MIDDLE_DOT = "\u00b7";
 
-function formatCustomMixSummary(
-  order: Awaited<ReturnType<typeof readSellerOrdersData>>["orders"][number],
-) {
-  const customMixItems = order.items.filter((item) => item.customMixComponents?.length);
-
-  if (!customMixItems.length) {
-    return null;
-  }
-
-  return customMixItems
-    .map((item) => {
-      const components = item.customMixComponents
-        ?.map((component) => `${component.quantity} pcs ${component.productName}`)
-        .join(" + ");
-
-      return `${item.customMixLabel || item.productName}: ${components || item.variantLabel}`;
-    })
-    .join(" | ");
-}
+const WHATSAPP_TEMPLATE_BY_STATUS: Record<(typeof statusOptions)[number], string> = {
+  pending_payment:
+    "Halo {name}, order kamu masih nunggu pembayaran yaa 😊 Kalau transfernya sudah masuk, kita lanjut cek secepatnya ya terima kasih",
+  payment_review:
+    "Halo {name}, bukti transfer kamu sudah masuk dan lagi kita cek yaa 😊 Kalau sudah beres, kita langsung update lagi di chat ini terima kasih",
+  confirmed:
+    "Halo {name}, order kamu sudah aman masuk antrean yaa 🙌 Tinggal tunggu update hangat berikutnya dari kita terima kasih",
+  in_production:
+    "Halo {name}, order kamu lagi diproses di dapur kita yaa ✨ Nanti kalau sudah makin dekat ke tahap berikutnya, kita kabarin lagi terima kasih",
+  ready_for_pickup:
+    "Halo {name}, order kamu sudah ready buat di-pickup yaa 🙌 Kalau mau, kamu bisa balas jam ambil yang paling enak buat kamu terima kasih",
+  out_for_delivery:
+    "Halo {name}, order kamu sudah OTW yaa 🚚✨ Nanti kalau sudah sampai, kita kabarin lagi di sini terima kasih",
+  completed:
+    "Halo {name}, order kamu sudah selesai yaa 😊 Semoga suka dan enjoy, kalau mau repeat order kapan-kapan tinggal chat kita lagi terima kasih",
+  cancelled:
+    "Halo {name}, order kamu saat ini kita tandai batal dulu yaa 🙏 Kalau nanti mau dibantu bikin order baru, tinggal chat kita lagi terima kasih",
+};
 
 function buildWhatsappHelperMessage(
   order: Awaited<ReturnType<typeof readSellerOrdersData>>["orders"][number],
 ) {
-  const statusCopy: Record<(typeof statusOptions)[number], string> = {
-    pending_payment:
-      `pesanannya masih nunggu pembayaran dulu ya ${SMILING_HANDS_EMOJI} Begitu transfernya masuk, kami lanjut cek secepatnya.`,
-    payment_review:
-      `bukti bayarnya sudah kami terima dan lagi dicek ${SMILING_HANDS_EMOJI} Sebentar lagi kami kabari lanjutannya ya.`,
-    confirmed:
-      `ordernya sudah aman masuk antrean produksi ${SMILING_HANDS_EMOJI} Tinggal tunggu kabar hangat berikutnya dari kami.`,
-    in_production:
-      `pesanannya lagi diracik di dapur kami ${SMILING_HANDS_EMOJI} Sudah masuk fase wangi-wangi enak.`,
-    ready_for_pickup:
-      `ordernya sudah siap diambil ${SMILING_HANDS_EMOJI} Kalau mau confirm jam pickup, tinggal balas chat ini ya.`,
-    out_for_delivery:
-      `ordernya lagi jalan ke kamu ${SMILING_HANDS_EMOJI} Semoga sampai dengan selamat dan tetap cantik.`,
-    completed:
-      `ordernya sudah selesai ${SMILING_HANDS_EMOJI} Makasih banyak sudah jajan di Risol Club, semoga bikin hari kamu makin enak.`,
-    cancelled:
-      "ordernya kami tandai batal dulu ya. Kalau mau dibantu bikin order baru, tinggal kabarin saja.",
-  };
-
-  const customMixSummary = formatCustomMixSummary(order);
-
-  return `Halo ${order.customerName}, mau kasih kabar hangat buat order ${order.code} ya. Saat ini ${statusCopy[order.status]}${
-    customMixSummary ? ` Detail custom order: ${customMixSummary}.` : ""
-  } Kalau ada catatan kecil atau perubahan, tinggal balas chat ini aja.`;
+  return WHATSAPP_TEMPLATE_BY_STATUS[order.status].replace("{name}", order.customerName);
 }
 
 type SellerOrdersPageProps = {
@@ -148,7 +123,7 @@ export default async function SellerOrdersPage({ searchParams }: SellerOrdersPag
                     rel="noreferrer"
                     className="rounded-full bg-white px-4 py-3 text-center text-sm font-bold text-[color:var(--brand-900)]"
                   >
-                    {`Kirim update hangat ${SMILING_HANDS_EMOJI}`}
+                    Kirim update hangat 😊
                   </a>
                   {order.paymentProof ? (
                     <a
