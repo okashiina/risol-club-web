@@ -22,13 +22,13 @@ export default async function CheckoutPage({
       </div>
 
       <div className="mb-6 mt-6">
-        <p className="pill bg-white/80 text-[color:var(--brand-900)]">
+        <p className="pill bg-white/80 text-(--brand-900)">
           {text.checkoutTitle}
         </p>
-        <h1 className="mt-4 font-display text-4xl">
+        <h1 className="mt-4 font-display text-4xl text-(--brand-900)">
           {locale === "en"
-            ? "A gentle checkout flow that still feels clean on a phone."
-            : "Tinggal selangkah lagi! Selesaikan pembayaranmu biar risolnya bisa langsung kita proses."}
+            ? "You're almost done! Complete your payment so we can process your risol right away"
+            : "Tinggal selangkah lagi! Selesaikan pembayaranmu biar risolnya bisa langsung kami proses"}
         </h1>
       </div>
 

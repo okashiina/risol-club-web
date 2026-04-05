@@ -8,7 +8,6 @@ import { getLocale } from "@/lib/i18n";
 import { formatCurrency } from "@/lib/reports";
 import { readPublicCatalogData } from "@/lib/store-projections";
 
-const TASTY_EMOJI = "\u{1F60B}";
 const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
 
 export default async function Home() {
@@ -34,7 +33,7 @@ export default async function Home() {
 
       <main className="page-shell pb-16 pt-6">
         <section className="grid gap-6 lg:grid-cols-[1.08fr_0.92fr] lg:items-center">
-          <div className="hero-surface grain-overlay overflow-hidden rounded-[2.9rem] p-6 sm:p-8">
+          <div className="hero-surface overflow-hidden rounded-[2.9rem] p-6 sm:p-8">
             <div className="flex flex-wrap items-center gap-3">
               <p className="pill bg-white/92 px-5 py-3 tracking-normal text-[color:var(--brand-900)] shadow-[0_12px_30px_rgba(173,53,49,0.12)]">
                 Pre-order
@@ -47,21 +46,19 @@ export default async function Home() {
               {locale === "en" ? (
                 <>
                   South Tangerang&apos;s comfort-snack favorite. Take frozen packs home for later,
-                  or ask for them freshly fried so they&apos;re ready to bite into{" "}
-                  <span className="emoji-ios">{TASTY_EMOJI}</span>
+                  or ask for them freshly fried so they&apos;re ready to bite into!
                 </>
               ) : (
                 <>
                   Comfort snack andalan Tangsel! Bawa pulang frozen buat stok, atau minta
-                  digorengin sekalian biar tinggal hap{" "}
-                  <span className="emoji-ios">{TASTY_EMOJI}</span>
+                  digorengin sekalian biar tinggal hap!
                 </>
               )}
             </h1>
             <p className="mt-5 max-w-2xl text-sm leading-7 text-[color:var(--ink-700)] sm:text-[0.98rem]">
               {locale === "en"
-                ? "Pick your flavor, choose the serving style, upload payment proof, and keep the receipt so you can track the order again anytime."
-                : "Pilih rasa, tentukan mau frozen atau fried, upload bukti transfer, lalu simpan receipt supaya progres order gampang dicek lagi kapan pun."}
+                ? "Pick your flavor, choose the serving style, upload payment proof, and keep the receipt so you can track your order anytime!"
+                : "Pilih rasa, tentukan mau frozen atau fried, upload bukti transfer, lalu simpan receipt mu agar bisa cek progres orderan mu!"}
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Link href="/checkout" className="btn-primary px-6 py-4 text-center font-bold">
@@ -73,10 +70,8 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="mesh-card relative overflow-hidden rounded-[2.9rem] border border-[#f2c6c2] p-6 shadow-[0_30px_70px_rgba(185,30,30,0.12)]">
-            <div className="absolute -right-12 -top-10 h-36 w-36 rounded-full bg-[#ffd7cf]" />
-            <div className="absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-[#ffe8bf]" />
-            <div className="relative grid gap-4">
+          <div className="surface-card rounded-[2.9rem] p-6 shadow-[0_30px_70px_rgba(185,30,30,0.08)]">
+            <div className="grid gap-4">
               <div id="story" className="rounded-[2rem] bg-white p-5">
                 <div className="relative mx-auto mb-4 h-28 w-28 sm:h-36 sm:w-36">
                   <Image
@@ -88,22 +83,19 @@ export default async function Home() {
                     priority
                   />
                 </div>
-                <p className="text-center font-note text-lg text-[color:var(--brand-800)]">
+                <p className="text-center font-note text-lg text-[color:var(--hero-copy)]">
                   {locale === "en" ? "From our tiny kitchen" : "Dari dapur kecil kami"}
                 </p>
-                <p className="mt-3 text-center text-sm leading-7 text-[color:var(--ink-700)] sm:text-[0.98rem]">
+                <p className="mt-3 text-center text-sm leading-7 text-[color:var(--hero-copy)] sm:text-[0.98rem]">
                   {locale === "en" ? settings.storyEn : settings.story}
                 </p>
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 {products.map((product) => {
-                  const frozen = getVariant(product, "frozen");
-                  const fried = getVariant(product, "fried");
-
                   return (
                     <div
                       key={product.id}
-                      className={`rounded-[2rem] bg-gradient-to-br ${product.accent} p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]`}
+                      className="rounded-[2rem] border border-[color:var(--paper-300)] bg-[color:var(--paper-100)] p-5 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)]"
                     >
                       <p className="text-sm font-semibold text-[color:var(--brand-900)]">
                         {locale === "en" ? product.prepLabelEn : product.prepLabel}
@@ -116,23 +108,6 @@ export default async function Home() {
                           ? product.shortDescriptionEn
                           : product.shortDescription}
                       </p>
-                      <div className="mt-4 grid gap-2 rounded-[1.35rem] bg-white/80 p-3 text-sm">
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-[color:var(--ink-700)]">Frozen</span>
-                          <span className="font-black text-[color:var(--brand-900)]">
-                            {formatCurrency(frozen?.price ?? getDisplayPrice(product))}
-                          </span>
-                        </div>
-                        <div className="flex items-center justify-between">
-                          <span className="font-semibold text-[color:var(--ink-700)]">Fried</span>
-                          <span className="font-black text-[color:var(--brand-900)]">
-                            {formatCurrency(fried?.price ?? getDisplayPrice(product))}
-                          </span>
-                        </div>
-                        <p className="text-xs text-[color:var(--ink-700)]">
-                          1 qty = 3 pcs
-                        </p>
-                      </div>
                       <div className="mt-4 flex items-center justify-between">
                         <span className="font-bold text-[color:var(--brand-900)]">
                           {locale === "en" ? "Starts from" : "Mulai dari"}{" "}
@@ -260,30 +235,20 @@ export default async function Home() {
                       </div>
 
                       <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="rounded-[1.6rem] bg-[linear-gradient(135deg,#fff7ef,#fff0e7)] p-4">
+                        <div className="rounded-[1.6rem] bg-[color:var(--paper-100)] p-4">
                           <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
                             Frozen
                           </p>
                           <p className="mt-2 font-heading text-3xl text-[color:var(--brand-900)]">
                             {formatCurrency(frozen?.price ?? getDisplayPrice(product))}
                           </p>
-                          <p className="mt-2 text-sm text-[color:var(--ink-700)]">
-                            {locale === "en"
-                              ? "Calm, freezer-friendly, and easy to save."
-                              : "Tenang, freezer-friendly, dan gampang disimpan."}
-                          </p>
                         </div>
-                        <div className="rounded-[1.6rem] bg-[linear-gradient(135deg,#fff3ee,#fff0f7)] p-4">
+                        <div className="rounded-[1.6rem] bg-[color:var(--paper-100)] p-4">
                           <p className="text-xs font-black uppercase tracking-[0.18em] text-[color:var(--brand-900)]">
                             Fried
                           </p>
                           <p className="mt-2 font-heading text-3xl text-[color:var(--brand-900)]">
                             {formatCurrency(fried?.price ?? getDisplayPrice(product))}
-                          </p>
-                          <p className="mt-2 text-sm text-[color:var(--ink-700)]">
-                            {locale === "en"
-                              ? "Warm, fragrant, and ready for direct snacking."
-                              : "Hangat, wangi, dan siap langsung dinikmati."}
                           </p>
                         </div>
                       </div>
@@ -320,8 +285,8 @@ export default async function Home() {
             </p>
             <h2 className="mt-4 font-heading text-3xl text-[color:var(--brand-900)]">
               {locale === "en"
-                ? "Already ordered? Reopen the receipt whenever you need it."
-                : "Sudah pernah order? Receipt bisa dibuka lagi kapan pun kamu perlu."}
+                ? "Already ordered? Reopen the receipt anytime!"
+                : "Sudah pernah order? Receipt bisa dibuka lagi kapan pun!"}
             </h2>
             <p className="mt-4 text-sm leading-7 text-[color:var(--ink-700)]">
               {locale === "en"

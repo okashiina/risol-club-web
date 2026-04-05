@@ -64,6 +64,14 @@ export type Recipe = {
   updatedAt: string;
 };
 
+export type CustomMixComponent = {
+  productId: string;
+  productName: string;
+  quantity: number;
+  variantType?: ProductVariantType;
+  variantLabel?: string;
+};
+
 export type Product = {
   id: string;
   slug: string;
@@ -116,6 +124,8 @@ export type OrderItem = {
   pieceCount: number;
   unitPrice: number;
   costSnapshot: number;
+  customMixLabel?: string;
+  customMixComponents?: CustomMixComponent[];
 };
 
 export type PaymentProof = {
@@ -153,6 +163,8 @@ export type Notification = {
   body: string;
   href: string;
   read: boolean;
+  kind?: string;
+  dedupeKey?: string;
   createdAt: string;
 };
 

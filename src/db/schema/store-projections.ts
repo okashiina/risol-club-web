@@ -73,6 +73,8 @@ export const notificationsProjection = pgTable("notifications_projection", {
   body: text("body").notNull(),
   href: text("href").notNull(),
   read: boolean("read").notNull(),
+  kind: text("kind"),
+  dedupeKey: text("dedupe_key"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
 });
 

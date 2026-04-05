@@ -45,8 +45,10 @@ const LEGACY_BANK_ACCOUNT_NUMBER = "60505842655";
 const DEFAULT_BANK_ACCOUNT_NUMBER = "6050584265";
 const LEGACY_SELLER_WHATSAPP = "6285159134699";
 const LEGACY_SELLER_WHATSAPP_DISPLAY = "085159134699";
-const DEFAULT_SELLER_WHATSAPP = "6285183151407";
-const DEFAULT_SELLER_WHATSAPP_DISPLAY = "085183151407";
+const PREVIOUS_SELLER_WHATSAPP = "6285183151407";
+const PREVIOUS_SELLER_WHATSAPP_DISPLAY = "085183151407";
+const DEFAULT_SELLER_WHATSAPP = "62881081767677";
+const DEFAULT_SELLER_WHATSAPP_DISPLAY = "(0881081767677)";
 const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
 const DEFAULT_STORY =
   `Dari dapur kecil kami, setiap batch diracik buat nemenin momen hangat: buat ngemil santai, kirim hadiah kecil, atau stok comfort snack yang rasanya bikin senyum ${SMILING_HANDS_EMOJI}`;
@@ -68,11 +70,17 @@ function normalizeStoreData(store: StoreData) {
     store.settings.bankAccountNumber = DEFAULT_BANK_ACCOUNT_NUMBER;
   }
 
-  if (store.settings.sellerWhatsapp === LEGACY_SELLER_WHATSAPP) {
+  if (
+    store.settings.sellerWhatsapp === LEGACY_SELLER_WHATSAPP ||
+    store.settings.sellerWhatsapp === PREVIOUS_SELLER_WHATSAPP
+  ) {
     store.settings.sellerWhatsapp = DEFAULT_SELLER_WHATSAPP;
   }
 
-  if (store.settings.sellerWhatsappDisplay === LEGACY_SELLER_WHATSAPP_DISPLAY) {
+  if (
+    store.settings.sellerWhatsappDisplay === LEGACY_SELLER_WHATSAPP_DISPLAY ||
+    store.settings.sellerWhatsappDisplay === PREVIOUS_SELLER_WHATSAPP_DISPLAY
+  ) {
     store.settings.sellerWhatsappDisplay = DEFAULT_SELLER_WHATSAPP_DISPLAY;
   }
 
@@ -92,20 +100,29 @@ function normalizeStoreData(store: StoreData) {
     const canonicalName = blueprint?.name ?? product.name;
     const variants = normalizeProductVariants(product.variants, blueprint?.variants);
     const images = normalizeProductImages(product.images, blueprint?.images, canonicalName);
+    const description = product.description?.trim()
+      ? product.description
+      : blueprint?.description ?? product.description;
+    const descriptionEn = product.descriptionEn?.trim()
+      ? product.descriptionEn
+      : blueprint?.descriptionEn ?? product.descriptionEn ?? description;
     const normalizedProduct: Product = {
       ...product,
       slug: canonicalSlug,
       name: blueprint?.name ?? product.name,
       nameEn: blueprint?.nameEn ?? product.nameEn ?? product.name,
       shortDescription:
-        blueprint?.shortDescription ?? product.shortDescription,
+        product.shortDescription?.trim()
+          ? product.shortDescription
+          : blueprint?.shortDescription ?? product.shortDescription,
       shortDescriptionEn:
-        blueprint?.shortDescriptionEn ??
-        product.shortDescriptionEn ??
-        product.shortDescription,
-      description: blueprint?.description ?? product.description,
-      descriptionEn:
-        blueprint?.descriptionEn ?? product.descriptionEn ?? product.description,
+        product.shortDescriptionEn?.trim()
+          ? product.shortDescriptionEn
+          : blueprint?.shortDescriptionEn ??
+            product.shortDescriptionEn ??
+            product.shortDescription,
+      description,
+      descriptionEn,
       accent: blueprint?.accent ?? product.accent,
       prepLabel: blueprint?.prepLabel ?? product.prepLabel,
       prepLabelEn: blueprint?.prepLabelEn ?? product.prepLabelEn ?? product.prepLabel,
@@ -317,6 +334,8 @@ async function syncProjectedTables(
         body: notification.body,
         href: notification.href,
         read: notification.read,
+        kind: notification.kind ?? null,
+        dedupeKey: notification.dedupeKey ?? null,
         createdAt: asDate(notification.createdAt),
       })),
     );
@@ -407,6 +426,29 @@ async function resolveInitialDatabaseStore() {
   return deepClone(seedData);
 }
 
+async function ensureProjectionSchemaCompatibility(db: NonNullable<ReturnType<typeof getDb>>) {
+  await db.execute(drizzleSql`
+    create table if not exists notifications_projection (
+      id text primary key,
+      title text not null,
+      body text not null,
+      href text not null,
+      read boolean not null,
+      kind text,
+      dedupe_key text,
+      created_at timestamptz not null
+    )
+  `);
+  await db.execute(drizzleSql`
+    alter table notifications_projection
+    add column if not exists kind text
+  `);
+  await db.execute(drizzleSql`
+    alter table notifications_projection
+    add column if not exists dedupe_key text
+  `);
+}
+
 async function ensureLocalStoreFile() {
   await mkdir(DATA_DIR, { recursive: true });
 
@@ -428,14 +470,16 @@ async function ensureDatabaseStore() {
     return;
   }
 
+  const db = getDb();
+
+  if (!db) {
+    return;
+  }
+
+  await ensureProjectionSchemaCompatibility(db);
+
   if (!databaseReadyPromise) {
     databaseReadyPromise = (async () => {
-      const db = getDb();
-
-      if (!db) {
-        return;
-      }
-
       await db.execute(drizzleSql`
         create table if not exists app_state (
           id text primary key,
@@ -508,16 +552,7 @@ async function ensureDatabaseStore() {
         alter table orders_projection
         drop constraint if exists orders_projection_code_key
       `);
-      await db.execute(drizzleSql`
-        create table if not exists notifications_projection (
-          id text primary key,
-          title text not null,
-          body text not null,
-          href text not null,
-          read boolean not null,
-          created_at timestamptz not null
-        )
-      `);
+      await ensureProjectionSchemaCompatibility(db);
       await db.execute(drizzleSql`
         create table if not exists ingredients_projection (
           id text primary key,
@@ -840,7 +875,9 @@ export function calculateProductCost(store: StoreData, productId: string) {
   );
   const product = store.products.find((item) => item.id === productId);
 
-  return recipeUnitCost * (product ? getPackSize(product) : DEFAULT_PACK_SIZE);
+  return Math.round(
+    recipeUnitCost * (product ? getPackSize(product) : DEFAULT_PACK_SIZE),
+  );
 }
 
 export function getProductStock(store: StoreData, productId: string) {

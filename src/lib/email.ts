@@ -3,6 +3,22 @@ import "server-only";
 import { Resend } from "resend";
 import { Order } from "@/lib/types";
 
+export type SellerDigestEmailSection = {
+  title: string;
+  lines: string[];
+};
+
+export type SellerDigestEmailPayload = {
+  subject: string;
+  title: string;
+  intro: string;
+  dedupeKey: string;
+  preview?: string;
+  sections: SellerDigestEmailSection[];
+  ctaHref?: string;
+  ctaLabel?: string;
+};
+
 function readEnv(name: string) {
   return process.env[name]?.trim() || "";
 }
@@ -97,6 +113,15 @@ function buildItemsMarkup(order: Order) {
     .join("");
 }
 
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
 function buildPlainText(order: Order) {
   const lines = [
     `Order baru masuk: ${order.code}`,
@@ -167,6 +192,74 @@ function buildHtml(order: Order) {
   `;
 }
 
+function buildDigestPlainText(payload: SellerDigestEmailPayload) {
+  const lines = [
+    payload.title,
+    payload.intro,
+    "",
+    ...payload.sections.flatMap((section) => [
+      section.title,
+      ...section.lines.map((line) => `- ${line}`),
+      "",
+    ]),
+  ];
+
+  if (payload.ctaHref) {
+    lines.push(payload.ctaLabel || "Buka dashboard", payload.ctaHref);
+  }
+
+  return lines.join("\n").trim();
+}
+
+function buildDigestHtml(payload: SellerDigestEmailPayload) {
+  const preview = payload.preview || payload.intro;
+  const sectionMarkup = payload.sections
+    .map(
+      (section) => `
+        <div style="margin:0 0 18px;">
+          <p style="margin:0 0 10px;font-weight:700;color:#b91e1e;">${escapeHtml(section.title)}</p>
+          <ul style="margin:0;padding-left:18px;line-height:1.7;">
+            ${section.lines
+              .map((line) => `<li style="margin:0 0 8px;">${escapeHtml(line)}</li>`)
+              .join("")}
+          </ul>
+        </div>
+      `,
+    )
+    .join("");
+
+  return `
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      ${escapeHtml(preview)}
+    </div>
+    <div style="background:#fff8f6;padding:24px;font-family:Arial,sans-serif;color:#3f2622;">
+      <div style="max-width:640px;margin:0 auto;background:white;border-radius:24px;padding:28px;border:1px solid #f3d6ca;">
+        <p style="margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#b91e1e;">
+          Seller digest
+        </p>
+        <h1 style="margin:0 0 8px;font-size:34px;line-height:1.1;color:#4a1f1a;">
+          ${escapeHtml(payload.title)}
+        </h1>
+        <p style="margin:0 0 20px;font-size:16px;line-height:1.7;">
+          ${escapeHtml(payload.intro)}
+        </p>
+
+        ${sectionMarkup}
+
+        ${
+          payload.ctaHref
+            ? `<div style="margin-top:24px;">
+                 <a href="${escapeHtml(payload.ctaHref)}" style="display:inline-block;border-radius:999px;background:#4a1f1a;color:white;padding:12px 18px;font-weight:700;text-decoration:none;">
+                   ${escapeHtml(payload.ctaLabel || "Buka dashboard")}
+                 </a>
+               </div>`
+            : ""
+        }
+      </div>
+    </div>
+  `;
+}
+
 export async function sendNewOrderSellerEmail(order: Order) {
   const resend = getResendClient();
   const to = getOrderAlertRecipient();
@@ -199,6 +292,44 @@ export async function sendNewOrderSellerEmail(order: Order) {
 
   console.info("Seller order email sent", {
     orderCode: order.code,
+    to: extractEmailAddress(to),
+    from: extractEmailAddress(from),
+  });
+
+  return { sent: true as const };
+}
+
+export async function sendSellerDigestEmail(payload: SellerDigestEmailPayload) {
+  const resend = getResendClient();
+  const to = getOrderAlertRecipient();
+  const from = getOrderAlertSender();
+
+  if (!resend || !to) {
+    return { sent: false, reason: "missing_email_config" as const };
+  }
+
+  const { data, error } = await resend.emails.send(
+    {
+      from,
+      to,
+      subject: payload.subject,
+      html: buildDigestHtml(payload),
+      text: buildDigestPlainText(payload),
+    },
+    {
+      headers: {
+        "Idempotency-Key": `seller-digest-${payload.dedupeKey}`,
+      },
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message || "Failed to send seller digest email.");
+  }
+
+  console.info("Seller digest email sent", {
+    digestKey: payload.dedupeKey,
+    emailId: data?.id,
     to: extractEmailAddress(to),
     from: extractEmailAddress(from),
   });

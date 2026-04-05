@@ -260,6 +260,26 @@ export async function clearNotificationsAction(formData: FormData) {
   revalidateSellerDashboard();
 }
 
+export async function deleteNotificationAction(formData: FormData) {
+  await requireSellerActionSession();
+
+  const notificationId = textValue(formData, "notificationId");
+
+  if (!notificationId) {
+    return;
+  }
+
+  await writeStore((store) => {
+    store.notifications = store.notifications.filter(
+      (notification) => notification.id !== notificationId,
+    );
+
+    return store;
+  });
+
+  revalidateSellerDashboard();
+}
+
 export async function updateOrderStatusAction(formData: FormData) {
   await requireSellerActionSession();
 
@@ -342,6 +362,8 @@ export async function updateOrderStatusAction(formData: FormData) {
   if (updatedCode) {
     revalidateOrderArtifacts(updatedCode);
   }
+
+  redirect("/seller/orders");
 }
 
 export async function createManualOrderAction(formData: FormData) {
@@ -469,6 +491,7 @@ export async function createManualOrderAction(formData: FormData) {
       body: `${customerName} dimasukkan ke sistem sebagai ${code}.`,
       href: "/seller/orders",
       read: false,
+      kind: "order",
       createdAt,
     });
 

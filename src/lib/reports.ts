@@ -8,6 +8,47 @@ import {
 import { StoreData } from "@/lib/types";
 
 const BUSINESS_TIME_ZONE = "Asia/Jakarta";
+const MIX_PACK_PRODUCT_ID = "custom-mix-pack";
+
+export type ReportRangeDays = 7 | 30 | 90;
+
+export type ReportSeriesPoint = {
+  key: string;
+  label: string;
+  revenue: number;
+  cogs: number;
+  profit: number;
+};
+
+export type SalesBreakdownItem = {
+  product: {
+    id: string;
+    name: string;
+  };
+  quantity: number;
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+};
+
+export type ReportQueryOptions = {
+  range?: ReportRangeDays;
+  hideZero?: boolean;
+};
+
+export type ReportDigestData = {
+  revenue: number;
+  cogs: number;
+  grossProfit: number;
+  profitMargin: number;
+  averageOrderValue: number;
+  orderCount: number;
+  topPerformers: SalesBreakdownItem[];
+  lowStockIngredientCount: number;
+  lowStockProductCount: number;
+  inventoryAttention: string[];
+  inactivityWarnings: string[];
+};
 
 function getBusinessDateParts(value: Date | string) {
   const date = typeof value === "string" ? new Date(value) : value;
@@ -26,9 +67,126 @@ function getBusinessDateParts(value: Date | string) {
   };
 }
 
-function getBusinessDateKey(value: Date | string) {
+export function getBusinessDateKey(value: Date | string) {
   const { year, month, day } = getBusinessDateParts(value);
   return `${year}-${month}-${day}`;
+}
+
+function getRangeOption(days?: number): ReportRangeDays {
+  if (days === 30 || days === 90) {
+    return days;
+  }
+
+  return 7;
+}
+
+function getReportWindowKeys(range: ReportRangeDays) {
+  const today = new Date();
+
+  return Array.from({ length: range }, (_, index) => {
+    const date = new Date(today.getTime() - (range - index - 1) * 24 * 60 * 60 * 1000);
+    const key = getBusinessDateKey(date);
+
+    return {
+      key,
+      label: new Intl.DateTimeFormat("id-ID", {
+        timeZone: BUSINESS_TIME_ZONE,
+        day: "2-digit",
+        month: "short",
+      }).format(date),
+    };
+  });
+}
+
+function getMixPackProductLabel() {
+  return {
+    id: MIX_PACK_PRODUCT_ID,
+    name: "Mix Pack",
+  };
+}
+
+function isPastOrPresent(value: string) {
+  return new Date(value).getTime() <= Date.now();
+}
+
+function getSalesOrders(store: StoreData) {
+  return store.orders.filter(
+    (order) => order.status !== "cancelled" && isPastOrPresent(order.createdAt),
+  );
+}
+
+function getSellableProducts(store: StoreData) {
+  return store.products.filter(
+    (product) => product.isActive && product.variants.some((variant) => variant.isActive),
+  );
+}
+
+function getTopSalesBreakdownItems(
+  sales: SalesBreakdownItem[],
+  limit = 3,
+) {
+  return [...sales]
+    .filter((item) => item.revenue > 0 || item.quantity > 0)
+    .sort((left, right) => {
+      if (right.revenue !== left.revenue) {
+        return right.revenue - left.revenue;
+      }
+
+      return right.quantity - left.quantity;
+    })
+    .slice(0, limit);
+}
+
+function getLastOrderDate(store: StoreData) {
+  return getSalesOrders(store)
+    .map((order) => order.createdAt)
+    .sort((left, right) => right.localeCompare(left))[0];
+}
+
+function getPoClosedSince(store: StoreData) {
+  const sellableProducts = getSellableProducts(store);
+
+  if (sellableProducts.length > 0 || store.products.length === 0) {
+    return null;
+  }
+
+  return [...store.products]
+    .map((product) => product.updatedAt)
+    .sort((left, right) => right.localeCompare(left))[0] ?? null;
+}
+
+function getDaysSince(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const now = new Date();
+  const diff = now.getTime() - new Date(value).getTime();
+  return Math.floor(diff / (24 * 60 * 60 * 1000));
+}
+
+export function getInactivitySignals(store: StoreData) {
+  const lastOrderDate = getLastOrderDate(store) ?? null;
+  const noOrderDays = getDaysSince(lastOrderDate);
+  const poClosedSince = getPoClosedSince(store);
+  const poClosedDays = getDaysSince(poClosedSince);
+  const warnings: string[] = [];
+
+  if (noOrderDays !== null && noOrderDays >= 7) {
+    warnings.push(`Sudah ${noOrderDays} hari tidak ada order baru masuk.`);
+  }
+
+  if (poClosedDays !== null && poClosedDays >= 14) {
+    warnings.push(`Semua menu tidak aktif selama ${poClosedDays} hari, PO perlu dicek lagi.`);
+  }
+
+  return {
+    noOrderDays,
+    poClosedDays,
+    warnings,
+    lastOrderDate,
+    poClosedSince,
+  };
 }
 
 export function formatCurrency(value: number) {
@@ -49,9 +207,7 @@ export function formatCompactCurrency(value: number) {
 }
 
 export function getDashboardMetrics(store: StoreData) {
-  const completedOrActiveOrders = store.orders.filter(
-    (order) => order.status !== "cancelled",
-  );
+  const completedOrActiveOrders = getSalesOrders(store);
   const revenue = completedOrActiveOrders.reduce((sum, order) => sum + order.total, 0);
   const cogs = completedOrActiveOrders.reduce(
     (sum, order) => sum + summarizeOrderCost(store, order),
@@ -70,10 +226,8 @@ export function getDashboardMetrics(store: StoreData) {
     }
 
     for (const item of order.items) {
-      orderVolume.set(
-        item.productName,
-        (orderVolume.get(item.productName) ?? 0) + item.quantity,
-      );
+      const label = item.productId === MIX_PACK_PRODUCT_ID ? "Mix Pack" : item.productName;
+      orderVolume.set(label, (orderVolume.get(label) ?? 0) + item.quantity);
     }
   }
 
@@ -135,11 +289,9 @@ export function getIngredientHistory(store: StoreData) {
 }
 
 export function getSalesBreakdown(store: StoreData) {
-  return store.products.map((product) => {
-    const soldItems = store.orders.flatMap((order) =>
-      order.status === "cancelled"
-        ? []
-        : order.items.filter((item) => item.productId === product.id),
+  const baseSales = store.products.map((product) => {
+    const soldItems = getSalesOrders(store).flatMap((order) =>
+      order.items.filter((item) => item.productId === product.id),
     );
 
     const quantity = soldItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -153,40 +305,74 @@ export function getSalesBreakdown(store: StoreData) {
     );
 
     return {
-      product,
+      product: {
+        id: product.id,
+        name: product.name,
+      },
       quantity,
       revenue,
       cogs,
       grossProfit: revenue - cogs,
-    };
+    } satisfies SalesBreakdownItem;
   });
+
+  const mixItems = getSalesOrders(store).flatMap((order) =>
+    order.items.filter(
+      (item) => item.productId === MIX_PACK_PRODUCT_ID || item.customMixComponents?.length,
+    ),
+  );
+
+  if (!mixItems.length) {
+    return baseSales;
+  }
+
+  const mixQuantity = mixItems.reduce((sum, item) => sum + item.quantity, 0);
+  const mixRevenue = mixItems.reduce(
+    (sum, item) => sum + item.quantity * item.unitPrice,
+    0,
+  );
+  const mixCogs = mixItems.reduce(
+    (sum, item) => sum + item.quantity * item.costSnapshot,
+    0,
+  );
+
+  return [
+    ...baseSales,
+    {
+      product: getMixPackProductLabel(),
+      quantity: mixQuantity,
+      revenue: mixRevenue,
+      cogs: mixCogs,
+      grossProfit: mixRevenue - mixCogs,
+    } satisfies SalesBreakdownItem,
+  ];
 }
 
-export function getReportDailySeries(store: StoreData, days = 7) {
-  const formatter = new Intl.DateTimeFormat("id-ID", {
-    timeZone: BUSINESS_TIME_ZONE,
-    day: "2-digit",
-    month: "short",
-  });
-  const today = new Date();
+export function getReportDailySeries(
+  store: StoreData,
+  options: ReportQueryOptions = {},
+) {
+  const range = getRangeOption(options.range);
+  const hideZero = options.hideZero ?? true;
+  const salesOrders = getSalesOrders(store);
 
-  return Array.from({ length: days }, (_, index) => {
-    const date = new Date(today.getTime() - (days - index - 1) * 24 * 60 * 60 * 1000);
-    const key = getBusinessDateKey(date);
-    const orders = store.orders.filter(
-      (order) => order.status !== "cancelled" && getBusinessDateKey(order.createdAt) === key,
-    );
+  const series = getReportWindowKeys(range).map((day) => {
+    const orders = salesOrders.filter((order) => getBusinessDateKey(order.createdAt) === day.key);
     const revenue = orders.reduce((sum, order) => sum + order.total, 0);
     const cogs = orders.reduce((sum, order) => sum + summarizeOrderCost(store, order), 0);
 
     return {
-      key,
-      label: formatter.format(date),
+      key: day.key,
+      label: day.label,
       revenue,
       cogs,
       profit: revenue - cogs,
-    };
+    } satisfies ReportSeriesPoint;
   });
+
+  return hideZero
+    ? series.filter((item) => item.revenue !== 0 || item.profit !== 0)
+    : series;
 }
 
 export function getStatusBreakdown(store: StoreData) {
@@ -210,7 +396,7 @@ export function getStatusBreakdown(store: StoreData) {
 
 export function getReportHighlights(store: StoreData) {
   const metrics = getDashboardMetrics(store);
-  const nonCancelledOrders = store.orders.filter((order) => order.status !== "cancelled");
+  const nonCancelledOrders = getSalesOrders(store);
   const averageOrderValue = nonCancelledOrders.length
     ? metrics.revenue / nonCancelledOrders.length
     : 0;
@@ -221,6 +407,57 @@ export function getReportHighlights(store: StoreData) {
     averageOrderValue,
     profitMargin,
   };
+}
+
+export function getReportDigestData(
+  store: StoreData,
+  options: { days?: number; currentMonth?: boolean } = {},
+) {
+  const salesOrders = getSalesOrders(store);
+  const now = new Date();
+  const rangeDays = options.days ?? 7;
+  const windowStart = new Date(now.getTime() - (rangeDays - 1) * 24 * 60 * 60 * 1000);
+  const monthKey = `${getBusinessDateParts(now).year}-${getBusinessDateParts(now).month}`;
+
+  const orders = salesOrders.filter((order) => {
+    if (options.currentMonth) {
+      return getBusinessDateKey(order.createdAt).startsWith(monthKey);
+    }
+
+    return new Date(order.createdAt).getTime() >= windowStart.getTime();
+  });
+
+  const scopedStore: StoreData = {
+    ...store,
+    orders,
+  };
+  const metrics = getReportHighlights(scopedStore);
+  const sales = getSalesBreakdown(scopedStore);
+  const topPerformers = getTopSalesBreakdownItems(sales);
+  const lowStockIngredients = store.ingredients.filter(
+    (ingredient) => ingredient.stock <= ingredient.lowStockThreshold,
+  );
+  const lowStockProducts = store.productStocks.filter(
+    (stock) => stock.stock <= stock.lowStockThreshold,
+  );
+  const inventoryAttention = [
+    `${lowStockIngredients.length} bahan menyentuh low stock.`,
+    `${lowStockProducts.length} stok produk jadi perlu dicek.`,
+  ];
+
+  return {
+    revenue: metrics.revenue,
+    cogs: metrics.cogs,
+    grossProfit: metrics.grossProfit,
+    profitMargin: metrics.profitMargin,
+    averageOrderValue: metrics.averageOrderValue,
+    orderCount: orders.length,
+    topPerformers,
+    lowStockIngredientCount: lowStockIngredients.length,
+    lowStockProductCount: lowStockProducts.length,
+    inventoryAttention,
+    inactivityWarnings: getInactivitySignals(store).warnings,
+  } satisfies ReportDigestData;
 }
 
 export function formatDateTime(value: string) {

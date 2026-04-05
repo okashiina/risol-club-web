@@ -52,10 +52,26 @@ export function RevenuePulseChart({ series }: RevenuePulseChartProps) {
     };
   }, []);
 
+  if (!series.length) {
+    return (
+      <div className="rounded-[1.8rem] bg-white p-8 text-center">
+        <p className="text-sm font-bold uppercase tracking-[0.16em] text-[color:var(--brand-900)]">
+          Belum ada hari aktif di range ini
+        </p>
+        <p className="mt-3 text-sm leading-7 text-[color:var(--ink-700)]">
+          Nyalakan lagi hari kosong kalau kamu mau lihat seluruh window walau tidak ada order
+          yang masuk.
+        </p>
+      </div>
+    );
+  }
+
+  const gridTemplateColumns = `repeat(${series.length}, minmax(5.5rem, 1fr))`;
+
   return (
     <div
       ref={chartRef}
-      className="rounded-[1.8rem] bg-white p-5"
+      className="overflow-x-auto rounded-[1.8rem] bg-white p-5"
       onMouseLeave={() => setActiveIndex(null)}
     >
       <div className="mb-5 flex flex-wrap gap-4 text-xs font-bold uppercase tracking-[0.16em]">
@@ -72,7 +88,10 @@ export function RevenuePulseChart({ series }: RevenuePulseChartProps) {
         </span>
       </div>
 
-      <div className="grid h-[19rem] grid-cols-7 items-end gap-3">
+      <div
+        className="grid h-[19rem] min-w-[34rem] items-end gap-3"
+        style={{ gridTemplateColumns }}
+      >
         {series.map((item, index) => {
           const revenueHeight = `${Math.max((item.revenue / maxSeriesValue) * 100, item.revenue ? 10 : 4)}%`;
           const profitHeight = `${Math.max((Math.abs(item.profit) / maxSeriesValue) * 100, item.profit ? 10 : 4)}%`;

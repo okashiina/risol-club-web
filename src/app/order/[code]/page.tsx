@@ -138,8 +138,8 @@ export default async function OrderTrackingPage({
           </p>
           <h1 className="mt-4 font-display text-4xl">
             {locale === "en"
-              ? "Thanks, your order is in."
-              : "Thank you, order kamu sudah masuk."}
+              ? "Thank you for ordering! Your order is in!"
+              : "Thank you for ordering! order kamu sudah masuk!"}
           </h1>
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             <div className="rounded-[1.5rem] bg-[color:var(--paper-100)] p-4">
@@ -236,8 +236,18 @@ export default async function OrderTrackingPage({
                       {item.productName}
                     </span>
                     <p className="text-xs text-[color:var(--ink-700)]">
-                      {item.variantLabel} • {item.quantity} qty • {item.pieceCount} pcs
+                      {item.customMixLabel
+                        ? `${item.customMixLabel} • ${item.quantity} qty • ${item.pieceCount} pcs`
+                        : `${item.variantLabel} • ${item.quantity} qty • ${item.pieceCount} pcs`}
                     </p>
+                    {item.customMixComponents?.length ? (
+                      <p className="mt-1 text-xs text-[color:var(--ink-700)]">
+                        {locale === "en" ? "Per pack" : "Per pack"}:{" "}
+                        {item.customMixComponents
+                          .map((component) => `${component.quantity} pcs ${component.productName}`)
+                          .join(" + ")}
+                      </p>
+                    ) : null}
                   </div>
                   <span className="font-bold">
                     {formatCurrency(item.unitPrice * item.quantity)}

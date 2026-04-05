@@ -23,7 +23,29 @@ const statusOptions = [
 const SMILING_HANDS_EMOJI = "\u{1F60A}\u{1F64C}";
 const MIDDLE_DOT = "\u00b7";
 
-function buildWhatsappHelperMessage(order: Awaited<ReturnType<typeof readSellerOrdersData>>["orders"][number]) {
+function formatCustomMixSummary(
+  order: Awaited<ReturnType<typeof readSellerOrdersData>>["orders"][number],
+) {
+  const customMixItems = order.items.filter((item) => item.customMixComponents?.length);
+
+  if (!customMixItems.length) {
+    return null;
+  }
+
+  return customMixItems
+    .map((item) => {
+      const components = item.customMixComponents
+        ?.map((component) => `${component.quantity} pcs ${component.productName}`)
+        .join(" + ");
+
+      return `${item.customMixLabel || item.productName}: ${components || item.variantLabel}`;
+    })
+    .join(" | ");
+}
+
+function buildWhatsappHelperMessage(
+  order: Awaited<ReturnType<typeof readSellerOrdersData>>["orders"][number],
+) {
   const statusCopy: Record<(typeof statusOptions)[number], string> = {
     pending_payment:
       `pesanannya masih nunggu pembayaran dulu ya ${SMILING_HANDS_EMOJI} Begitu transfernya masuk, kami lanjut cek secepatnya.`,
@@ -43,7 +65,11 @@ function buildWhatsappHelperMessage(order: Awaited<ReturnType<typeof readSellerO
       "ordernya kami tandai batal dulu ya. Kalau mau dibantu bikin order baru, tinggal kabarin saja.",
   };
 
-  return `Halo ${order.customerName}, mau kasih kabar hangat buat order ${order.code} ya. Saat ini ${statusCopy[order.status]} Kalau ada catatan kecil atau perubahan, tinggal balas chat ini aja.`;
+  const customMixSummary = formatCustomMixSummary(order);
+
+  return `Halo ${order.customerName}, mau kasih kabar hangat buat order ${order.code} ya. Saat ini ${statusCopy[order.status]}${
+    customMixSummary ? ` Detail custom order: ${customMixSummary}.` : ""
+  } Kalau ada catatan kecil atau perubahan, tinggal balas chat ini aja.`;
 }
 
 type SellerOrdersPageProps = {
@@ -142,7 +168,7 @@ export default async function SellerOrdersPage({ searchParams }: SellerOrdersPag
                   <div className="mt-3 space-y-3">
                     {order.items.map((item) => (
                       <div
-                        key={`${order.id}-${item.productId}-${item.variantType ?? "legacy"}`}
+                        key={`${order.id}-${item.productId}-${item.variantType ?? "legacy"}-${item.customMixLabel ?? item.productName}`}
                         className="flex items-center justify-between gap-4 text-sm"
                       >
                         <div>
@@ -152,6 +178,19 @@ export default async function SellerOrdersPage({ searchParams }: SellerOrdersPag
                           <p className="text-xs text-[color:var(--ink-700)]">
                             {item.variantLabel} {MIDDLE_DOT} {item.quantity} qty {MIDDLE_DOT} {item.pieceCount} pcs
                           </p>
+                          {item.customMixLabel ? (
+                            <p className="mt-1 text-xs text-[color:var(--ink-700)]">
+                              Custom mix {MIDDLE_DOT} {item.customMixLabel}
+                            </p>
+                          ) : null}
+                          {item.customMixComponents?.length ? (
+                            <p className="mt-1 text-xs text-[color:var(--ink-700)]">
+                              Isi per pack:{" "}
+                              {item.customMixComponents
+                                .map((component) => `${component.quantity} pcs ${component.productName}`)
+                                .join(" + ")}
+                            </p>
+                          ) : null}
                         </div>
                         <span className="font-bold">
                           {formatCurrency(item.unitPrice * item.quantity)}

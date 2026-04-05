@@ -20,37 +20,11 @@ import {
   readStore,
   syncDatabaseProjections,
 } from "@/lib/data-store";
-import {
-  getDashboardMetrics,
-  getReportDailySeries,
-  getReportHighlights,
-  getSalesBreakdown,
-  getStatusBreakdown,
-} from "@/lib/reports";
+import { ReportQueryOptions, getDashboardMetrics, getReportDailySeries, getReportHighlights, getSalesBreakdown, getStatusBreakdown } from "@/lib/reports";
 import { AppSettings, Ingredient, IngredientSupplierPrice, InventoryItemType, InventoryMovementType, Notification, Order, OrderItem, OrderStatus, PaymentProof, Product, ProductStock, Recipe, StoreData, Supplier } from "@/lib/types";
-
-const BUSINESS_TIME_ZONE = "Asia/Jakarta";
-const REPORT_STATUS_LABELS = [
-  { status: "pending_payment", label: "Pending payment" },
-  { status: "payment_review", label: "Payment review" },
-  { status: "confirmed", label: "Confirmed" },
-  { status: "in_production", label: "In production" },
-  { status: "ready_for_pickup", label: "Ready for pickup" },
-  { status: "out_for_delivery", label: "Out for delivery" },
-  { status: "completed", label: "Completed" },
-  { status: "cancelled", label: "Cancelled" },
-] as const satisfies Array<{ status: OrderStatus; label: string }>;
 
 function toIso(value: Date | string) {
   return typeof value === "string" ? value : value.toISOString();
-}
-
-function formatDailyLabelFromKey(key: string) {
-  return new Intl.DateTimeFormat("id-ID", {
-    timeZone: BUSINESS_TIME_ZONE,
-    day: "2-digit",
-    month: "short",
-  }).format(new Date(`${key}T00:00:00+07:00`));
 }
 
 function mapProduct(row: typeof productsProjection.$inferSelect): Product {
@@ -107,6 +81,8 @@ function mapNotification(row: typeof notificationsProjection.$inferSelect): Noti
     body: row.body,
     href: row.href,
     read: row.read,
+    kind: row.kind ?? undefined,
+    dedupeKey: row.dedupeKey ?? undefined,
     createdAt: toIso(row.createdAt),
   };
 }
@@ -179,6 +155,51 @@ function mapMovement(row: typeof inventoryMovementsProjection.$inferSelect) {
   };
 }
 
+function extractDbErrorCode(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "";
+  }
+
+  if ("code" in error && typeof error.code === "string") {
+    return error.code;
+  }
+
+  if ("cause" in error) {
+    return extractDbErrorCode(error.cause);
+  }
+
+  return "";
+}
+
+function extractDbErrorMessage(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "";
+  }
+
+  if ("message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  if ("cause" in error) {
+    return extractDbErrorMessage(error.cause);
+  }
+
+  return "";
+}
+
+function isRecoverableProjectionError(error: unknown) {
+  const code = extractDbErrorCode(error);
+  const message = extractDbErrorMessage(error).toLowerCase();
+
+  return (
+    code === "42P01" ||
+    code === "42703" ||
+    message.includes("column \"kind\" does not exist") ||
+    message.includes("column \"dedupe_key\" does not exist") ||
+    message.includes("notifications_projection")
+  );
+}
+
 async function withDbFallback<T>(dbReader: () => Promise<T>, fallbackReader: () => Promise<T>) {
   if (!hasDatabaseUrl()) {
     return fallbackReader();
@@ -193,12 +214,7 @@ async function withDbFallback<T>(dbReader: () => Promise<T>, fallbackReader: () 
   try {
     return await dbReader();
   } catch (error) {
-    const code =
-      typeof error === "object" && error !== null && "code" in error
-        ? String((error as { code?: unknown }).code ?? "")
-        : "";
-
-    if (code === "42P01" || code === "42703") {
+    if (isRecoverableProjectionError(error)) {
       await syncDatabaseProjections();
       return dbReader();
     }
@@ -225,12 +241,7 @@ const hasProjectionSnapshot = cache(async () => {
       .limit(1);
     return rows.length > 0;
   } catch (error) {
-    const code =
-      typeof error === "object" && error !== null && "code" in error
-        ? String((error as { code?: unknown }).code ?? "")
-        : "";
-
-    if (code === "42P01" || code === "42703") {
+    if (isRecoverableProjectionError(error)) {
       return false;
     }
 
@@ -254,6 +265,16 @@ async function withProjectionRecovery<T>(
 
   await syncDatabaseProjections();
   return reader();
+}
+
+function buildStoreReportsData(store: StoreData, options: ReportQueryOptions = {}) {
+  return {
+    metrics: getReportHighlights(store),
+    sales: getSalesBreakdown(store),
+    dailySeries: getReportDailySeries(store, options),
+    statusBreakdown: getStatusBreakdown(store),
+    activeOrderCount: store.orders.filter((order) => order.status !== "cancelled").length,
+  };
 }
 
 export const readSettingsData = cache(async () =>
@@ -364,14 +385,18 @@ export const readSellerOverviewData = cache(async () =>
   withDbFallback(
     async () =>
       withProjectionRecovery(async () => {
-      const db = getDb()!;
-      const [productRows, orderRows, notificationRows, ingredientRows, stockRows] = await Promise.all([
-        db.select().from(productsProjection),
-        db.select().from(ordersProjection).orderBy(desc(ordersProjection.createdAt)),
-        db.select().from(notificationsProjection).orderBy(desc(notificationsProjection.createdAt)).limit(5),
-        db.select().from(ingredientsProjection),
-        db.select().from(productStocksProjection),
-      ]);
+        const db = getDb()!;
+        const [productRows, orderRows, notificationRows, unreadRows, ingredientRows, stockRows] = await Promise.all([
+          db.select().from(productsProjection),
+          db.select().from(ordersProjection).orderBy(desc(ordersProjection.createdAt)),
+          db.select().from(notificationsProjection).orderBy(desc(notificationsProjection.createdAt)).limit(5),
+          db
+            .select({ count: drizzleSql<number>`count(*)` })
+            .from(notificationsProjection)
+            .where(eq(notificationsProjection.read, false)),
+          db.select().from(ingredientsProjection),
+          db.select().from(productStocksProjection),
+        ]);
 
       const storeSubset: StoreData = {
         settings: await readSettingsData(),
@@ -386,11 +411,14 @@ export const readSellerOverviewData = cache(async () =>
         inventoryMovements: [],
       };
 
-      return {
-        metrics: getDashboardMetrics(storeSubset),
-        notifications: notificationRows.map(mapNotification),
-        recentOrders: orderRows.slice(0, 5).map(mapOrder),
-      };
+        return {
+          metrics: {
+            ...getDashboardMetrics(storeSubset),
+            unreadNotifications: Number(unreadRows[0]?.count ?? 0),
+          },
+          notifications: notificationRows.map(mapNotification),
+          recentOrders: orderRows.slice(0, 5).map(mapOrder),
+        };
     }, (result) => result.recentOrders.length === 0 && result.notifications.length === 0),
     async () => {
       const store = await readStore();
@@ -462,187 +490,36 @@ export const readSellerOrdersData = cache(async (page = 1, pageSize = 12) =>
     },
   ));
 
-export const readSellerReportsData = cache(async () =>
+export const readSellerReportsData = cache(async (options: ReportQueryOptions = {}) =>
   withDbFallback(
     async () =>
       withProjectionRecovery(async () => {
-      const db = getDb()!;
-      const [productRows, stockRows, metricsRows, statusRows, dailyRows, salesRows] = await Promise.all([
-        db.select().from(productsProjection),
-        db.select().from(productStocksProjection),
-        db.execute(drizzleSql`
-          select
-            coalesce(sum(o.total), 0)::int as revenue,
-            coalesce(sum(coalesce(item_costs.cogs, 0)), 0)::int as cogs,
-            coalesce(
-              sum(
-                case
-                  when ((o.created_at at time zone ${BUSINESS_TIME_ZONE})::date = (now() at time zone ${BUSINESS_TIME_ZONE})::date)
-                  then o.total
-                  else 0
-                end
-              ),
-              0
-            )::int as today_revenue,
-            count(*)::int as order_count
-          from orders_projection o
-          left join lateral (
-            select coalesce(sum(((item->>'costSnapshot')::int) * ((item->>'quantity')::int)), 0)::int as cogs
-            from jsonb_array_elements(o.items) item
-          ) item_costs on true
-          where o.status <> 'cancelled'
-        `),
-        db.execute(drizzleSql`
-          select status, count(*)::int as count
-          from orders_projection
-          group by status
-        `),
-        db.execute(drizzleSql`
-          with days as (
-            select generate_series(
-              ((now() at time zone ${BUSINESS_TIME_ZONE})::date - interval '6 day')::date,
-              (now() at time zone ${BUSINESS_TIME_ZONE})::date,
-              interval '1 day'
-            )::date as day
-          ),
-          order_costs as (
-            select
-              ((o.created_at at time zone ${BUSINESS_TIME_ZONE})::date) as business_day,
-              o.total,
-              coalesce((
-                select sum(((item->>'costSnapshot')::int) * ((item->>'quantity')::int))
-                from jsonb_array_elements(o.items) item
-              ), 0)::int as cogs
-            from orders_projection o
-            where o.status <> 'cancelled'
-          )
-          select
-            to_char(days.day, 'YYYY-MM-DD') as key,
-            coalesce(sum(order_costs.total), 0)::int as revenue,
-            coalesce(sum(order_costs.cogs), 0)::int as cogs
-          from days
-          left join order_costs on order_costs.business_day = days.day
-          group by days.day
-          order by days.day
-        `),
-        db.execute(drizzleSql`
-          with exploded as (
-            select
-              (item->>'productId') as product_id,
-              coalesce((item->>'quantity')::int, 0) as quantity,
-              coalesce((item->>'unitPrice')::int, 0) as unit_price,
-              coalesce((item->>'costSnapshot')::int, 0) as cost_snapshot
-            from orders_projection o
-            cross join lateral jsonb_array_elements(o.items) item
-            where o.status <> 'cancelled'
-          )
-          select
-            product_id,
-            coalesce(sum(quantity), 0)::int as quantity,
-            coalesce(sum(quantity * unit_price), 0)::int as revenue,
-            coalesce(sum(quantity * cost_snapshot), 0)::int as cogs
-          from exploded
-          group by product_id
-        `),
-      ]);
-      const metricsRow = ((metricsRows as unknown) as Array<{
-        revenue: number;
-        cogs: number;
-        today_revenue: number;
-        order_count: number;
-      }>)[0] ?? {
-        revenue: 0,
-        cogs: 0,
-        today_revenue: 0,
-        order_count: 0,
-      };
-      const products = productRows.map(mapProduct);
-      const productStocks = stockRows.map(mapProductStock);
-      const salesByProduct = new Map(
-        ((salesRows as unknown) as Array<{ product_id: string; quantity: number; revenue: number; cogs: number }>).map((row) => [
-          row.product_id,
-          row,
-        ]),
-      );
-      const revenue = Number(metricsRow.revenue ?? 0);
-      const cogs = Number(metricsRow.cogs ?? 0);
-      const grossProfit = revenue - cogs;
-      const averageOrderValue = Number(metricsRow.order_count ?? 0)
-        ? revenue / Number(metricsRow.order_count)
-        : 0;
-      const profitMargin = revenue ? grossProfit / revenue : 0;
-      const statusCounts = new Map(
-        ((statusRows as unknown) as Array<{ status: OrderStatus; count: number }>).map((row) => [
-          row.status,
-          Number(row.count ?? 0),
-        ]),
-      );
-      const dailySeries = ((dailyRows as unknown) as Array<{ key: string; revenue: number; cogs: number }>).map((row) => {
-        const revenueValue = Number(row.revenue ?? 0);
-        const cogsValue = Number(row.cogs ?? 0);
-        return {
-          key: row.key,
-          label: formatDailyLabelFromKey(row.key),
-          revenue: revenueValue,
-          cogs: cogsValue,
-          profit: revenueValue - cogsValue,
-        };
-      });
+        const db = getDb()!;
+        const [productRows, ingredientRows, stockRows, orderRows] = await Promise.all([
+          db.select().from(productsProjection),
+          db.select().from(ingredientsProjection),
+          db.select().from(productStocksProjection),
+          db.select().from(ordersProjection).orderBy(desc(ordersProjection.createdAt)),
+        ]);
 
-      return {
-        metrics: {
-          revenue,
-          cogs,
-          grossProfit,
-          todayRevenue: Number(metricsRow.today_revenue ?? 0),
-          pendingOrders:
-            (statusCounts.get("pending_payment") ?? 0) +
-            (statusCounts.get("payment_review") ?? 0) +
-            (statusCounts.get("confirmed") ?? 0) +
-            (statusCounts.get("in_production") ?? 0),
-          unreadNotifications: 0,
-          topProducts: [],
-          lowStockIngredients: [],
-          lowStockProducts: productStocks
-            .filter((stock) => stock.stock <= stock.lowStockThreshold)
-            .map((stock) => ({
-              ...stock,
-              product: products.find((product) => product.id === stock.productId),
-            }))
-            .sort((a, b) => a.stock - b.stock),
-          averageOrderValue,
-          profitMargin,
-        },
-        sales: products.map((product) => {
-          const sale = salesByProduct.get(product.id);
-          const revenueValue = Number(sale?.revenue ?? 0);
-          const cogsValue = Number(sale?.cogs ?? 0);
-          return {
-            product,
-            quantity: Number(sale?.quantity ?? 0),
-            revenue: revenueValue,
-            cogs: cogsValue,
-            grossProfit: revenueValue - cogsValue,
-          };
-        }),
-        dailySeries,
-        statusBreakdown: REPORT_STATUS_LABELS.map((item) => ({
-          status: item.status,
-          label: item.label,
-          count: statusCounts.get(item.status) ?? 0,
-        })),
-        activeOrderCount: Number(metricsRow.order_count ?? 0),
-      };
-    }, (result) => result.sales.length === 0 && result.dailySeries.every((item) => item.revenue === 0 && item.profit === 0)),
+        const storeSubset: StoreData = {
+          settings: await readSettingsData(),
+          suppliers: [],
+          ingredients: ingredientRows.map(mapIngredient),
+          ingredientSupplierPrices: [],
+          products: productRows.map(mapProduct),
+          recipes: [],
+          productStocks: stockRows.map(mapProductStock),
+          orders: orderRows.map(mapOrder),
+          notifications: [],
+          inventoryMovements: [],
+        };
+
+        return buildStoreReportsData(storeSubset, options);
+        }, (result) => result.sales.length === 0 && result.dailySeries.every((item) => item.revenue === 0 && item.profit === 0)),
     async () => {
       const store = await readStore();
-      return {
-        metrics: getReportHighlights(store),
-        sales: getSalesBreakdown(store),
-        dailySeries: getReportDailySeries(store),
-        statusBreakdown: getStatusBreakdown(store),
-        activeOrderCount: store.orders.filter((order) => order.status !== "cancelled").length,
-      };
+      return buildStoreReportsData(store, options);
     },
   ));
 

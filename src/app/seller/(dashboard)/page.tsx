@@ -2,8 +2,17 @@ import Link from "next/link";
 import { ActionButton } from "@/components/action-button";
 import { formatCompactCurrency, formatDateTime } from "@/lib/reports";
 import { statusLabel } from "@/lib/data-store";
-import { markNotificationsReadAction, sellerLogoutAction } from "@/app/seller/actions";
+import {
+  clearNotificationsAction,
+  deleteNotificationAction,
+  markNotificationsReadAction,
+  sellerLogoutAction,
+} from "@/app/seller/actions";
 import { readSellerOverviewData } from "@/lib/store-projections";
+
+function formatNotificationKind(kind?: string) {
+  return (kind || "update").replaceAll("_", " ");
+}
 
 export default async function SellerOverviewPage() {
   const { metrics, notifications, recentOrders } = await readSellerOverviewData();
@@ -51,11 +60,6 @@ export default async function SellerOverviewPage() {
         <div className="surface-card rounded-[2rem] p-6">
           <h2 className="font-display text-2xl">Owner actions</h2>
           <div className="mt-5 grid gap-3">
-            <form action={markNotificationsReadAction}>
-              <ActionButton className="w-full rounded-full bg-[color:var(--brand-900)] px-4 py-3 font-bold text-white">
-                Mark notifications as read
-              </ActionButton>
-            </form>
             <form action={sellerLogoutAction}>
               <ActionButton className="w-full rounded-full border border-[color:var(--paper-300)] px-4 py-3 font-bold text-[color:var(--brand-900)]">
                 Logout
@@ -73,11 +77,30 @@ export default async function SellerOverviewPage() {
 
       <section className="grid gap-6 lg:grid-cols-2">
         <div className="surface-card rounded-[2rem] p-6">
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-2xl">Notifications</h2>
-            <span className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
-              {metrics.unreadNotifications} unread
-            </span>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-display text-2xl">Notifications</h2>
+              <p className="mt-2 text-sm text-[color:var(--ink-700)]">
+                Ringkas order baru, reminder operasional, dan nanti digest performa mingguan
+                bakal numpuk di sini.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="pill bg-[color:var(--paper-100)] text-[color:var(--brand-900)]">
+                {metrics.unreadNotifications} unread
+              </span>
+              <form action={markNotificationsReadAction}>
+                <ActionButton className="rounded-full bg-[color:var(--brand-900)] px-4 py-2 text-sm font-bold text-white">
+                  Mark all read
+                </ActionButton>
+              </form>
+              <form action={clearNotificationsAction}>
+                <input type="hidden" name="confirmation" value="DELETE" />
+                <ActionButton className="rounded-full border border-[color:var(--paper-300)] bg-white px-4 py-2 text-sm font-bold text-[color:var(--brand-900)]">
+                  Clear all
+                </ActionButton>
+              </form>
+            </div>
           </div>
           <div className="mt-4 grid gap-3">
             {notifications.length ? (
@@ -90,12 +113,38 @@ export default async function SellerOverviewPage() {
                       : "border-[#f3cfca] bg-[#fff5f3]"
                   }`}
                 >
-                  <p className="font-bold text-[color:var(--brand-900)]">
-                    {notification.title}
-                  </p>
-                  <p className="mt-2 text-sm text-[color:var(--ink-700)]">
-                    {notification.body}
-                  </p>
+                  <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-bold text-[color:var(--brand-900)]">
+                          {notification.title}
+                        </p>
+                        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--ink-700)]">
+                          {formatNotificationKind(notification.kind)}
+                        </span>
+                      </div>
+                      <p className="mt-2 text-sm text-[color:var(--ink-700)]">
+                        {notification.body}
+                      </p>
+                      <div className="mt-3 flex flex-wrap items-center gap-3 text-xs font-semibold uppercase tracking-[0.12em] text-[color:var(--ink-700)]">
+                        <span>{formatDateTime(notification.createdAt)}</span>
+                        {notification.href ? (
+                          <Link
+                            href={notification.href}
+                            className="text-[color:var(--brand-900)] underline underline-offset-4"
+                          >
+                            Open
+                          </Link>
+                        ) : null}
+                      </div>
+                    </div>
+                    <form action={deleteNotificationAction}>
+                      <input type="hidden" name="notificationId" value={notification.id} />
+                      <ActionButton className="rounded-full border border-[color:var(--paper-300)] bg-white px-4 py-2 text-sm font-bold text-[color:var(--brand-900)]">
+                        Delete
+                      </ActionButton>
+                    </form>
+                  </div>
                 </div>
               ))
             ) : (

@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/internal/digests/weekly",
+      "schedule": "0 2 * * 1"
+    },
+    {
+      "path": "/api/internal/digests/monthly",
+      "schedule": "15 2 1 * *"
+    },
+    {
+      "path": "/api/internal/digests/inactivity",
+      "schedule": "30 2 * * *"
+    }
+  ]
+}

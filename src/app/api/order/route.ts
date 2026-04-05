@@ -9,7 +9,7 @@ import {
   readStore,
   writeStore,
 } from "@/lib/data-store";
-import { Locale, Order } from "@/lib/types";
+import { CustomMixComponent, Locale, Order, OrderItem } from "@/lib/types";
 
 function makeOrderCode(orderCount: number) {
   const date = new Date();
@@ -84,6 +84,10 @@ export async function POST(request: Request) {
     productName: string;
     variantType?: "frozen" | "fried";
     variantLabel?: string;
+    pieceCount?: number;
+    costSnapshot?: number;
+    customMixLabel?: string;
+    customMixComponents?: CustomMixComponent[];
   }[];
 
   if (!parsedItems.length) {
@@ -125,6 +129,34 @@ export async function POST(request: Request) {
   const normalizedItems = parsedItems.map((item) => {
     const product = store.products.find((entry) => entry.id === item.productId);
     const variant = product ? getVariant(product, item.variantType) : undefined;
+    const customMixComponents = item.customMixComponents?.filter(
+      (component): component is CustomMixComponent => Boolean(component?.productId),
+    );
+
+    if (item.productId === "custom-mix-pack" || customMixComponents?.length) {
+      return {
+        ...item,
+        productName:
+          item.productName ||
+          (locale === "en" ? "Custom mix pack" : "Pack campur custom"),
+        variantType: item.variantType,
+        variantLabel:
+          item.variantLabel ||
+          (locale === "en" ? "Custom mix" : "Custom mix"),
+        pieceCount: item.pieceCount || item.quantity * 3,
+        unitPrice: item.unitPrice,
+        costSnapshot: 0,
+        customMixLabel: item.customMixLabel,
+        customMixComponents:
+          customMixComponents?.map((component) => ({
+            productId: component.productId,
+            productName: component.productName,
+            quantity: component.quantity,
+            variantType: component.variantType,
+            variantLabel: component.variantLabel,
+          })) ?? [],
+      } satisfies OrderItem;
+    }
 
     return {
       ...item,
@@ -165,6 +197,7 @@ export async function POST(request: Request) {
       body: `${customerName} mengirim order ${code}.`,
       href: "/seller/orders",
       read: false,
+      kind: "order",
       createdAt,
     });
 
