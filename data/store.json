@@ -1,0 +1,1024 @@
+{
+  "orders": [
+    {
+      "id": "ord-87435d3e",
+      "code": "RC-0402-008",
+      "note": "Import Google Sheets PRE-ORDER 1. Kolom kirim kosong di sheet, diasumsikan pickup. Nomor WhatsApp belum ada di sheet. Metode kirim belum ditulis di sheet, diasumsikan pickup.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-1",
+          "unitPrice": 28000,
+          "pieceCount": 3,
+          "productName": "Smoked Beef Mayo",
+          "variantType": "frozen",
+          "costSnapshot": 14180,
+          "variantLabel": "Frozen"
+        }
+      ],
+      "total": 28000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "ready_for_pickup",
+      "subtotal": 28000,
+      "createdAt": "2026-04-02T12:25:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.752Z",
+      "deliveryFee": 0,
+      "customerName": "Ka Cilla",
+      "preorderDate": "2026-04-06T12:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "pickup"
+    },
+    {
+      "id": "ord-1d47e834",
+      "code": "RC-0402-007",
+      "note": "Import Google Sheets PRE-ORDER 1. Antar seller ke BINUS pada Senin, 6 April 2026. Nomor WhatsApp belum ada di sheet. Antar seller ke BINUS pada Senin, 6 April 2026.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-1",
+          "unitPrice": 30000,
+          "pieceCount": 3,
+          "productName": "Smoked Beef Mayo",
+          "variantType": "fried",
+          "costSnapshot": 14180,
+          "variantLabel": "Fried"
+        }
+      ],
+      "total": 30000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "ready_for_pickup",
+      "address": "BINUS - antar seller Senin, 6 April 2026",
+      "subtotal": 30000,
+      "createdAt": "2026-04-02T12:00:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.753Z",
+      "deliveryFee": 0,
+      "customerName": "Clarissa",
+      "preorderDate": "2026-04-06T10:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "delivery"
+    },
+    {
+      "id": "ord-aa4e3ea1",
+      "code": "RC-0402-006",
+      "note": "Import Google Sheets PRE-ORDER 1. Nomor WhatsApp belum ada di sheet. Kirim via PARXEL.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 28000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "frozen",
+          "costSnapshot": 14549,
+          "variantLabel": "Frozen"
+        }
+      ],
+      "total": 28000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "ready_for_pickup",
+      "address": "PARXEL - jadwal kirim 6 April 2026",
+      "subtotal": 28000,
+      "createdAt": "2026-04-02T11:25:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.753Z",
+      "deliveryFee": 0,
+      "customerName": "Tamaka",
+      "preorderDate": "2026-04-06T13:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "delivery"
+    },
+    {
+      "id": "ord-44498ec2",
+      "code": "RC-0402-005",
+      "note": "Import Google Sheets PRE-ORDER 1. Antar seller ke BINUS pada Senin, 6 April 2026. Nomor WhatsApp belum ada di sheet. Antar seller ke BINUS pada Senin, 6 April 2026.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 30000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "fried",
+          "costSnapshot": 14549,
+          "variantLabel": "Fried"
+        },
+        {
+          "quantity": 1,
+          "productId": "prod-1",
+          "unitPrice": 28000,
+          "pieceCount": 3,
+          "productName": "Smoked Beef Mayo",
+          "variantType": "frozen",
+          "costSnapshot": 14180,
+          "variantLabel": "Frozen"
+        }
+      ],
+      "total": 58000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "ready_for_pickup",
+      "address": "BINUS - antar seller Senin, 6 April 2026",
+      "subtotal": 58000,
+      "createdAt": "2026-04-02T11:00:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.753Z",
+      "deliveryFee": 0,
+      "customerName": "Luna",
+      "preorderDate": "2026-04-06T10:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "delivery"
+    },
+    {
+      "id": "ord-84e9329a",
+      "code": "RC-0402-004",
+      "note": "Import Google Sheets PRE-ORDER 1. Nomor WhatsApp belum ada di sheet. Siap pickup batch 6 April 2026.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 28000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "frozen",
+          "costSnapshot": 14549,
+          "variantLabel": "Frozen"
+        }
+      ],
+      "total": 28000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "completed",
+      "subtotal": 28000,
+      "createdAt": "2026-04-02T10:25:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.753Z",
+      "deliveryFee": 0,
+      "customerName": "Rainaya",
+      "preorderDate": "2026-04-06T12:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "pickup"
+    },
+    {
+      "id": "ord-daf0ab8c",
+      "code": "RC-0402-003",
+      "note": "Import Google Sheets PRE-ORDER 1. Teks sheet `Fr0zen` dibaca sebagai Fried karena total cocok Rp58.000. Nomor WhatsApp belum ada di sheet. Kirim via PARXEL.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 28000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "frozen",
+          "costSnapshot": 14549,
+          "variantLabel": "Frozen"
+        },
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 30000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "fried",
+          "costSnapshot": 14549,
+          "variantLabel": "Fried"
+        }
+      ],
+      "total": 58000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "ready_for_pickup",
+      "address": "PARXEL - jadwal kirim 6 April 2026",
+      "subtotal": 58000,
+      "createdAt": "2026-04-02T10:00:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.753Z",
+      "deliveryFee": 0,
+      "customerName": "Ica",
+      "preorderDate": "2026-04-06T13:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "delivery"
+    },
+    {
+      "id": "ord-02811f3f",
+      "code": "RC-0402-002",
+      "note": "Import Google Sheets PRE-ORDER 1. Mix (Mayo 2, Cheese 1) diasumsikan custom fried pack. Nomor WhatsApp belum ada di sheet. Antar seller ke apart.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "custom-mix-pack",
+          "unitPrice": 30000,
+          "pieceCount": 3,
+          "productName": "Pack campur custom",
+          "variantType": "fried",
+          "costSnapshot": 14303,
+          "variantLabel": "Custom fried",
+          "customMixLabel": "2 pcs Smoked Beef Mayo + 1 pcs Choco Cheese",
+          "customMixComponents": [
+            {
+              "quantity": 2,
+              "productId": "prod-1",
+              "productName": "Smoked Beef Mayo",
+              "variantType": "fried",
+              "variantLabel": "Fried"
+            },
+            {
+              "quantity": 1,
+              "productId": "prod-2",
+              "productName": "Choco Cheese",
+              "variantType": "fried",
+              "variantLabel": "Fried"
+            }
+          ]
+        }
+      ],
+      "total": 30000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "ready_for_pickup",
+      "address": "Antar ke apart - jadwal kirim 6 April 2026",
+      "subtotal": 30000,
+      "createdAt": "2026-04-02T09:25:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.753Z",
+      "deliveryFee": 0,
+      "customerName": "Jesslyn",
+      "preorderDate": "2026-04-06T13:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "delivery"
+    },
+    {
+      "id": "ord-87481ff0",
+      "code": "RC-0402-001",
+      "note": "Import Google Sheets PRE-ORDER 1. Total sheet Rp60.000; selisih Rp2.000 dicatat sebagai ongkir GOSEND. Kirim via GOSEND.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 28000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "frozen",
+          "costSnapshot": 14549,
+          "variantLabel": "Frozen"
+        },
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 30000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "fried",
+          "costSnapshot": 14549,
+          "variantLabel": "Fried"
+        }
+      ],
+      "total": 60000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "ready_for_pickup",
+      "address": "GOSEND - jadwal kirim 6 April 2026",
+      "subtotal": 58000,
+      "createdAt": "2026-04-02T09:00:00+07:00",
+      "updatedAt": "2026-04-05T03:50:21.753Z",
+      "deliveryFee": 2000,
+      "customerName": "Maria",
+      "preorderDate": "2026-04-06T13:00:00+07:00",
+      "customerWhatsapp": "6281398090018",
+      "fulfillmentMethod": "delivery"
+    },
+    {
+      "id": "ord-2188c3da",
+      "code": "RC-3004-001",
+      "note": "Manual entry: delivery order for Zahra on 30 March 2026. Marked completed by seller.",
+      "items": [
+        {
+          "quantity": 1,
+          "productId": "prod-2",
+          "unitPrice": 30000,
+          "pieceCount": 3,
+          "productName": "Choco Cheese",
+          "variantType": "fried",
+          "costSnapshot": 14549,
+          "variantLabel": "Fried"
+        }
+      ],
+      "total": 30000,
+      "locale": "id",
+      "source": "seller_manual",
+      "status": "completed",
+      "subtotal": 30000,
+      "createdAt": "2026-03-30T12:00:00+07:00",
+      "updatedAt": "2026-03-30T12:00:00+07:00",
+      "deliveryFee": 0,
+      "customerName": "Zahra",
+      "preorderDate": "2026-03-30T12:00:00+07:00",
+      "customerWhatsapp": "",
+      "fulfillmentMethod": "delivery"
+    }
+  ],
+  "recipes": [
+    {
+      "id": "rec-1",
+      "items": [
+        {
+          "quantity": 15,
+          "ingredientId": "ing-1"
+        },
+        {
+          "quantity": 5,
+          "ingredientId": "ing-2"
+        },
+        {
+          "quantity": 0.4,
+          "ingredientId": "ing-3"
+        },
+        {
+          "quantity": 1,
+          "ingredientId": "ing-4"
+        },
+        {
+          "quantity": 20,
+          "ingredientId": "ing-5"
+        },
+        {
+          "quantity": 8,
+          "ingredientId": "ing-6"
+        },
+        {
+          "quantity": 10,
+          "ingredientId": "ing-7"
+        },
+        {
+          "quantity": 14,
+          "ingredientId": "ing-10"
+        },
+        {
+          "quantity": 4,
+          "ingredientId": "ing-11"
+        },
+        {
+          "quantity": 8,
+          "ingredientId": "ing-12"
+        },
+        {
+          "quantity": 12,
+          "ingredientId": "ing-13"
+        },
+        {
+          "quantity": 0.333333,
+          "ingredientId": "ing-15"
+        },
+        {
+          "quantity": 0.333333,
+          "ingredientId": "ing-16"
+        },
+        {
+          "quantity": 0.333333,
+          "ingredientId": "ing-17"
+        }
+      ],
+      "productId": "prod-1",
+      "updatedAt": "2026-03-31T10:00:00.000Z",
+      "yieldCount": 1
+    },
+    {
+      "id": "rec-2",
+      "items": [
+        {
+          "quantity": 15,
+          "ingredientId": "ing-1"
+        },
+        {
+          "quantity": 5,
+          "ingredientId": "ing-2"
+        },
+        {
+          "quantity": 0.15,
+          "ingredientId": "ing-3"
+        },
+        {
+          "quantity": 1,
+          "ingredientId": "ing-4"
+        },
+        {
+          "quantity": 20,
+          "ingredientId": "ing-5"
+        },
+        {
+          "quantity": 8,
+          "ingredientId": "ing-6"
+        },
+        {
+          "quantity": 10,
+          "ingredientId": "ing-7"
+        },
+        {
+          "quantity": 3,
+          "ingredientId": "ing-8"
+        },
+        {
+          "quantity": 0.2,
+          "ingredientId": "ing-9"
+        },
+        {
+          "quantity": 8,
+          "ingredientId": "ing-12"
+        },
+        {
+          "quantity": 20,
+          "ingredientId": "ing-14"
+        },
+        {
+          "quantity": 0.333333,
+          "ingredientId": "ing-15"
+        },
+        {
+          "quantity": 0.333333,
+          "ingredientId": "ing-16"
+        },
+        {
+          "quantity": 0.333333,
+          "ingredientId": "ing-17"
+        }
+      ],
+      "productId": "prod-2",
+      "updatedAt": "2026-03-31T10:00:00.000Z",
+      "yieldCount": 1
+    }
+  ],
+  "products": [
+    {
+      "id": "prod-1",
+      "name": "Smoked Beef Mayo",
+      "slug": "smoked-beef-mayo",
+      "price": 28000,
+      "accent": "from-[#ffe4dd] via-white to-[#ffd9c6]",
+      "images": [
+        {
+          "id": "smoked-beef-mayo-image-1",
+          "alt": "Smoked Beef Mayo photo 1",
+          "url": "/catalog/smoked-beef-mayo/01.jpeg",
+          "position": 0
+        },
+        {
+          "id": "smoked-beef-mayo-image-2",
+          "alt": "Smoked Beef Mayo photo 2",
+          "url": "/catalog/smoked-beef-mayo/02.jpeg",
+          "position": 1
+        }
+      ],
+      "nameEn": "Smoked Beef Mayo",
+      "featured": true,
+      "isActive": true,
+      "packSize": 3,
+      "variants": [
+        {
+          "type": "frozen",
+          "label": "Frozen",
+          "price": 28000,
+          "isActive": true
+        },
+        {
+          "type": "fried",
+          "label": "Fried",
+          "price": 30000,
+          "isActive": true
+        }
+      ],
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "prepLabel": "Pre-order batch · 1 qty = 3 pcs",
+      "updatedAt": "2026-04-01T06:53:21.181Z",
+      "description": "Smoked Beef Mayo jadi menu comfort snack yang paling aman buat ramai-ramai. Rasanya gurih, creamy, dan familiar, dengan format 1 qty = 3 pcs jadi enak buat stok freezer ataupun langsung digoreng hangat buat nyemil sore 😊🙌",
+      "prepLabelEn": "Pre-order batch · 1 qty = 3 pcs",
+      "descriptionEn": "Smoked Beef Mayo is the crowd-pleasing comfort snack: savory, creamy, familiar, and sold in 3-piece packs that work well for freezer stock or a warm fried snack.",
+      "shortDescription": "Isi smoked beef, mayo, cheese, dan egg yang gurih creamy dalam pack isi 3 pcs.",
+      "shortDescriptionEn": "A creamy savory trio with smoked beef, mayo, cheese, and egg in a 3-piece pack."
+    },
+    {
+      "id": "prod-2",
+      "name": "Choco Cheese",
+      "slug": "choco-cheese",
+      "price": 28000,
+      "accent": "from-[#fff0df] via-white to-[#ffe4d8]",
+      "images": [
+        {
+          "id": "choco-cheese-image-1",
+          "alt": "Choco Cheese photo 1",
+          "url": "/catalog/choco-cheese/01.jpeg",
+          "position": 0
+        },
+        {
+          "id": "choco-cheese-image-2",
+          "alt": "Choco Cheese photo 2",
+          "url": "/catalog/choco-cheese/02.jpeg",
+          "position": 1
+        },
+        {
+          "id": "choco-cheese-image-3",
+          "alt": "Choco Cheese photo 3",
+          "url": "/catalog/choco-cheese/03.jpeg",
+          "position": 2
+        }
+      ],
+      "nameEn": "Choco Cheese",
+      "featured": true,
+      "isActive": true,
+      "packSize": 3,
+      "variants": [
+        {
+          "type": "frozen",
+          "label": "Frozen",
+          "price": 28000,
+          "isActive": true
+        },
+        {
+          "type": "fried",
+          "label": "Fried",
+          "price": 30000,
+          "isActive": true
+        }
+      ],
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "prepLabel": "Pre-order batch · 1 qty = 3 pcs",
+      "updatedAt": "2026-04-04T10:08:00.471Z",
+      "description": "Risol Choco Cheese hadir buat kamu yang suka dessert snack dengan tekstur playful. Ada sensasi crunchy cokelat, ada lembut keju, dan setiap 1 qty selalu datang dalam 1 pack isi 3 pcs yang cocok buat dibagi atau dimakan sendiri pelan-pelan 😊🙌",
+      "prepLabelEn": "Pre-order batch · 1 qty = 3 pcs",
+      "descriptionEn": "Choco Cheese Risol is made for playful dessert-snack cravings. Expect a chocolate crunch, a soft cheese finish, and 1 order quantity always packed as 3 pieces for sharing or savoring slowly.",
+      "shortDescription": "Cokelat renyah yang ketemu keju lembut, manis-gurihnya bikin susah berhenti.",
+      "shortDescriptionEn": "Chocolate crunch meets soft cheese in a sweet-savory pack that is hard to stop eating."
+    }
+  ],
+  "settings": {
+    "story": "Risol Club adalah dapur kecil yang serius soal rasa nyaman: kulit risol lembut, isian royal, dan vibe handmade yang hangat buat teman ngemil, hadiah kecil, atau stok mood booster.",
+    "storyEn": "Risol Club is a cozy small-batch kitchen focused on comforting flavors, generous fillings, and handmade warmth for gifting, snacking, and little joyful moments.",
+    "bankName": "BCA",
+    "brandName": "Risol Club",
+    "pickupAddress": "Pickup point akan dikonfirmasi lewat WhatsApp setelah pembayaran diverifikasi.",
+    "sellerWhatsapp": "62881081767677",
+    "pickupAddressEn": "Pickup point details will be confirmed via WhatsApp after payment verification.",
+    "bankAccountHolder": "Lubna Aqila",
+    "bankAccountNumber": "6050584265",
+    "defaultDeliveryFee": 0,
+    "sellerWhatsappDisplay": "(0881081767677)"
+  },
+  "suppliers": [
+    {
+      "id": "sup-1",
+      "name": "Depo Baking",
+      "notes": "Dipakai untuk estimasi belanja bahan inti dan packaging harian.",
+      "contact": "",
+      "isActive": true,
+      "createdAt": "2026-03-31T10:00:00.000Z"
+    },
+    {
+      "id": "sup-2",
+      "name": "Toko Aroma",
+      "notes": "Dipakai untuk estimasi belanja bahan inti dan packaging harian.",
+      "contact": "",
+      "isActive": true,
+      "createdAt": "2026-03-31T10:00:00.000Z"
+    }
+  ],
+  "ingredients": [
+    {
+      "id": "ing-1",
+      "name": "Tepung terigu",
+      "unit": "gram",
+      "stock": 4000,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 1000
+    },
+    {
+      "id": "ing-2",
+      "name": "Tepung tapioka",
+      "unit": "gram",
+      "stock": 1500,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 400
+    },
+    {
+      "id": "ing-3",
+      "name": "Telur",
+      "unit": "butir",
+      "stock": 40,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 10
+    },
+    {
+      "id": "ing-4",
+      "name": "Garam",
+      "unit": "gram",
+      "stock": 500,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 100
+    },
+    {
+      "id": "ing-5",
+      "name": "Air",
+      "unit": "ml",
+      "stock": 5000,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 1000
+    },
+    {
+      "id": "ing-6",
+      "name": "Minyak sawit",
+      "unit": "ml",
+      "stock": 2000,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 500
+    },
+    {
+      "id": "ing-7",
+      "name": "Tepung roti",
+      "unit": "gram",
+      "stock": 2500,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 500
+    },
+    {
+      "id": "ing-8",
+      "name": "Cocoa powder",
+      "unit": "gram",
+      "stock": 300,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 50
+    },
+    {
+      "id": "ing-9",
+      "name": "Pewarna makanan",
+      "unit": "ml",
+      "stock": 60,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 10
+    },
+    {
+      "id": "ing-10",
+      "name": "Mayonnaise",
+      "unit": "gram",
+      "stock": 2000,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 400
+    },
+    {
+      "id": "ing-11",
+      "name": "Susu kental manis",
+      "unit": "gram",
+      "stock": 1200,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 250
+    },
+    {
+      "id": "ing-12",
+      "name": "Keju",
+      "unit": "gram",
+      "stock": 1800,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 300
+    },
+    {
+      "id": "ing-13",
+      "name": "Smoked beef",
+      "unit": "gram",
+      "stock": 1200,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 300
+    },
+    {
+      "id": "ing-14",
+      "name": "Crunchy choco filling",
+      "unit": "gram",
+      "stock": 2000,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 400
+    },
+    {
+      "id": "ing-15",
+      "name": "Plastic bag",
+      "unit": "pcs",
+      "stock": 300,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 60
+    },
+    {
+      "id": "ing-16",
+      "name": "Sticker print",
+      "unit": "pcs",
+      "stock": 300,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-1",
+      "lowStockThreshold": 60
+    },
+    {
+      "id": "ing-17",
+      "name": "Plastic container",
+      "unit": "pcs",
+      "stock": 300,
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "activeSupplierId": "sup-2",
+      "lowStockThreshold": 60
+    }
+  ],
+  "notifications": [
+    {
+      "id": "notif-458c4b30",
+      "body": "miki mengirim order RC-0404-002.",
+      "href": "/seller/orders",
+      "read": false,
+      "title": "Order baru masuk",
+      "createdAt": "2026-04-04T11:00:12.974Z"
+    },
+    {
+      "id": "notif-920bf7d2",
+      "body": "illa mengirim order RC-0404-001.",
+      "href": "/seller/orders",
+      "read": false,
+      "title": "Order baru masuk",
+      "createdAt": "2026-04-04T10:10:36.983Z"
+    }
+  ],
+  "productStocks": [
+    {
+      "stock": 18,
+      "productId": "prod-1",
+      "updatedAt": "2026-04-05T20:00:00+07:00",
+      "lowStockThreshold": 8
+    },
+    {
+      "stock": 2,
+      "productId": "prod-2",
+      "updatedAt": "2026-04-30T12:00:00+07:00",
+      "lowStockThreshold": 8
+    }
+  ],
+  "inventoryMovements": [
+    {
+      "id": "move-0e2024f7",
+      "note": "Imported order RC-0402-008 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-1",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-66c0fd65",
+      "note": "Imported order RC-0402-007 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-1",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-edeb97d1",
+      "note": "Imported order RC-0402-006 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-75768142",
+      "note": "Imported order RC-0402-005 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-1",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-764fda7c",
+      "note": "Imported order RC-0402-005 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-bf866fb0",
+      "note": "Imported order RC-0402-004 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-baf9b394",
+      "note": "Imported order RC-0402-003 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-3bb21304",
+      "note": "Imported order RC-0402-003 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-84941469",
+      "note": "Imported order RC-0402-001 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-17227286",
+      "note": "Imported order RC-0402-001 reserved/confirmed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-04-05T20:00:00+07:00"
+    },
+    {
+      "id": "move-828c2005",
+      "note": "Manual order RC-3004-001 created as completed",
+      "type": "sale",
+      "itemId": "prod-2",
+      "itemType": "product",
+      "quantity": -1,
+      "createdAt": "2026-03-30T12:00:00+07:00"
+    }
+  ],
+  "ingredientSupplierPrices": [
+    {
+      "id": "price-1",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-1",
+      "pricePerUnit": 10,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-2",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-2",
+      "pricePerUnit": 14,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-3",
+      "notes": "Estimasi per butir",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-3",
+      "pricePerUnit": 2800,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-4",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-4",
+      "pricePerUnit": 2,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-5",
+      "notes": "Estimasi per ml",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-5",
+      "pricePerUnit": 1,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-6",
+      "notes": "Estimasi per ml",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-6",
+      "pricePerUnit": 18,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-7",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-7",
+      "pricePerUnit": 22,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-8",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-8",
+      "pricePerUnit": 95,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-9",
+      "notes": "Estimasi per ml",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-9",
+      "pricePerUnit": 150,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-10",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-10",
+      "pricePerUnit": 20,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-11",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-11",
+      "pricePerUnit": 28,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-12",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-12",
+      "pricePerUnit": 77,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-13",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-13",
+      "pricePerUnit": 120,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-14",
+      "notes": "Estimasi per gram",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-14",
+      "pricePerUnit": 117,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-15",
+      "notes": "Estimasi per pcs",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-15",
+      "pricePerUnit": 150,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-16",
+      "notes": "Estimasi per pcs",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-1",
+      "ingredientId": "ing-16",
+      "pricePerUnit": 500,
+      "effectiveFrom": "2026-04-05"
+    },
+    {
+      "id": "price-17",
+      "notes": "Estimasi per pcs",
+      "createdAt": "2026-03-31T10:00:00.000Z",
+      "supplierId": "sup-2",
+      "ingredientId": "ing-17",
+      "pricePerUnit": 1008,
+      "effectiveFrom": "2026-04-05"
+    }
+  ]
+}
