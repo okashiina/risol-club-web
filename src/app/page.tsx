@@ -185,7 +185,7 @@ export default async function Home() {
                 </p>
                 <p className="mt-2 text-sm leading-7 text-[color:var(--ink-700)]">
                   {locale === "en"
-                    ? `Every page is tuned to feel ringan, manis, dan gampang diikuti: pick your favorite pack, send the transfer, keep the receipt, lalu balik lagi kapan pun buat cek progresnya ${SMILING_HANDS_EMOJI}`
+                    ? `Every page is tuned to feel light, sweet, and easy to follow: pick your favorite pack, send the transfer, keep the receipt, then come back anytime to check the progress ${SMILING_HANDS_EMOJI}`
                     : `Setiap bagiannya dibuat supaya terasa ringan, manis, dan gampang diikuti: pilih pack favoritmu, kirim transfer, simpan receipt, lalu balik lagi kapan pun buat cek progresnya ${SMILING_HANDS_EMOJI}`}
                 </p>
               </div>

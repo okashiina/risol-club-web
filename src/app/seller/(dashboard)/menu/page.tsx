@@ -88,17 +88,37 @@ export default async function SellerMenuPage() {
                 />
               </div>
             </div>
-            <div>
-              <label className="label" htmlFor="shortDescription">
-                Short description
-              </label>
-              <textarea id="shortDescription" name="shortDescription" className="field min-h-24" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="shortDescription">
+                  Short description
+                </label>
+                <textarea id="shortDescription" name="shortDescription" className="field min-h-24" />
+              </div>
+              <div>
+                <label className="label" htmlFor="shortDescriptionEn">
+                  Short description EN
+                </label>
+                <textarea
+                  id="shortDescriptionEn"
+                  name="shortDescriptionEn"
+                  className="field min-h-24"
+                />
+              </div>
             </div>
-            <div>
-              <label className="label" htmlFor="description">
-                Description
-              </label>
-              <textarea id="description" name="description" className="field min-h-28" />
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="label" htmlFor="description">
+                  Description
+                </label>
+                <textarea id="description" name="description" className="field min-h-28" />
+              </div>
+              <div>
+                <label className="label" htmlFor="descriptionEn">
+                  Description EN
+                </label>
+                <textarea id="descriptionEn" name="descriptionEn" className="field min-h-28" />
+              </div>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
               <div>
@@ -199,16 +219,54 @@ export default async function SellerMenuPage() {
                       className="field"
                     />
                   </div>
-                  <textarea
-                    name="shortDescription"
-                    defaultValue={product.shortDescription}
-                    className="field min-h-20"
-                  />
-                  <textarea
-                    name="description"
-                    defaultValue={product.description}
-                    className="field min-h-24"
-                  />
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="label" htmlFor={`short-description-${product.id}`}>
+                        Short description
+                      </label>
+                      <textarea
+                        id={`short-description-${product.id}`}
+                        name="shortDescription"
+                        defaultValue={product.shortDescription}
+                        className="field min-h-20"
+                      />
+                    </div>
+                    <div>
+                      <label className="label" htmlFor={`short-description-en-${product.id}`}>
+                        Short description EN
+                      </label>
+                      <textarea
+                        id={`short-description-en-${product.id}`}
+                        name="shortDescriptionEn"
+                        defaultValue={product.shortDescriptionEn}
+                        className="field min-h-20"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="label" htmlFor={`description-${product.id}`}>
+                        Description
+                      </label>
+                      <textarea
+                        id={`description-${product.id}`}
+                        name="description"
+                        defaultValue={product.description}
+                        className="field min-h-24"
+                      />
+                    </div>
+                    <div>
+                      <label className="label" htmlFor={`description-en-${product.id}`}>
+                        Description EN
+                      </label>
+                      <textarea
+                        id={`description-en-${product.id}`}
+                        name="descriptionEn"
+                        defaultValue={product.descriptionEn}
+                        className="field min-h-24"
+                      />
+                    </div>
+                  </div>
                   <div>
                     <label className="label" htmlFor={`images-${product.id}`}>
                       Tambah foto baru
