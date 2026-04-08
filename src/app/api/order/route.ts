@@ -9,6 +9,7 @@ import {
   readStore,
   writeStore,
 } from "@/lib/data-store";
+import { resolvePoState } from "@/lib/po";
 import { CustomMixComponent, Locale, Order, OrderItem } from "@/lib/types";
 
 function makeOrderCode(orderCount: number) {
@@ -61,6 +62,7 @@ export async function POST(request: Request) {
   const formData = await request.formData();
   const store = await readStore();
   const locale = (String(formData.get("locale") ?? "id") === "en" ? "en" : "id") as Locale;
+  const poState = resolvePoState(store.poSettings);
   const customerName = String(formData.get("customerName") ?? "").trim();
   const customerWhatsapp = String(formData.get("customerWhatsapp") ?? "").trim();
   const fulfillmentMethod = String(formData.get("fulfillmentMethod") ?? "pickup");
@@ -69,6 +71,18 @@ export async function POST(request: Request) {
   const note = String(formData.get("note") ?? "").trim();
   const itemsRaw = String(formData.get("items") ?? "[]");
   const paymentProof = formData.get("paymentProof");
+
+  if (!poState.isOpen) {
+    return NextResponse.json(
+      {
+        error:
+          locale === "en"
+            ? "Pre-order is closed right now. Please join the notice list first."
+            : "PO lagi tutup sekarang. Join waitlist notice dulu ya.",
+      },
+      { status: 409 },
+    );
+  }
 
   if (!customerName || !customerWhatsapp || !preorderDate) {
     return NextResponse.json(

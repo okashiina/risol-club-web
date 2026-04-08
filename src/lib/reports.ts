@@ -5,6 +5,7 @@ import {
   isSalesStatus,
   summarizeOrderCost,
 } from "@/lib/data-store";
+import { getPoClosedSince, resolvePoState } from "@/lib/po";
 import { StoreData } from "@/lib/types";
 
 const BUSINESS_TIME_ZONE = "Asia/Jakarta";
@@ -115,12 +116,6 @@ function getSalesOrders(store: StoreData) {
   );
 }
 
-function getSellableProducts(store: StoreData) {
-  return store.products.filter(
-    (product) => product.isActive && product.variants.some((variant) => variant.isActive),
-  );
-}
-
 function getTopSalesBreakdownItems(
   sales: SalesBreakdownItem[],
   limit = 3,
@@ -143,18 +138,6 @@ function getLastOrderDate(store: StoreData) {
     .sort((left, right) => right.localeCompare(left))[0];
 }
 
-function getPoClosedSince(store: StoreData) {
-  const sellableProducts = getSellableProducts(store);
-
-  if (sellableProducts.length > 0 || store.products.length === 0) {
-    return null;
-  }
-
-  return [...store.products]
-    .map((product) => product.updatedAt)
-    .sort((left, right) => right.localeCompare(left))[0] ?? null;
-}
-
 function getDaysSince(value: string | null) {
   if (!value) {
     return null;
@@ -168,7 +151,8 @@ function getDaysSince(value: string | null) {
 export function getInactivitySignals(store: StoreData) {
   const lastOrderDate = getLastOrderDate(store) ?? null;
   const noOrderDays = getDaysSince(lastOrderDate);
-  const poClosedSince = getPoClosedSince(store);
+  const poState = resolvePoState(store.poSettings);
+  const poClosedSince = getPoClosedSince(store.poSettings);
   const poClosedDays = getDaysSince(poClosedSince);
   const warnings: string[] = [];
 
@@ -176,8 +160,8 @@ export function getInactivitySignals(store: StoreData) {
     warnings.push(`Sudah ${noOrderDays} hari tidak ada order baru masuk.`);
   }
 
-  if (poClosedDays !== null && poClosedDays >= 14) {
-    warnings.push(`Semua menu tidak aktif selama ${poClosedDays} hari, PO perlu dicek lagi.`);
+  if (!poState.isOpen && poClosedDays !== null && poClosedDays >= 14) {
+    warnings.push(`PO sedang tutup selama ${poClosedDays} hari, jadwal berikutnya perlu dicek lagi.`);
   }
 
   return {

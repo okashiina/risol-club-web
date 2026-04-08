@@ -5,6 +5,7 @@ A playful little storefront for a handmade risol brand, built with Next.js App R
 This app covers the cozy customer side and the practical seller side:
 
 - customer menu browsing and checkout
+- PO window control with manual open/close, scheduling, and waitlist notice
 - bank transfer flow with payment proof upload
 - direct payment proof preview on the order tracking page
 - pickup and delivery flow
@@ -139,6 +140,7 @@ SELLER_SESSION_SECRET=replace-with-a-strong-random-secret
 RESEND_API_KEY=re_xxxxx
 ORDER_ALERT_EMAIL_TO=owner@example.com
 ORDER_ALERT_EMAIL_FROM=Risol Club <onboarding@resend.dev>
+NEXT_PUBLIC_BASE_URL=https://your-production-domain.example
 ```
 
 ## Seller Email Alerts
@@ -165,6 +167,22 @@ Notes:
 - if `ORDER_ALERT_EMAIL_TO` is omitted, the app falls back to `SELLER_EMAIL`
 - `onboarding@resend.dev` works for early testing
 - for production sending, it is better to verify your own sending domain in Resend
+
+## PO Window And Waitlist
+
+The app now supports a dedicated PO control flow that is separate from menu activation:
+
+- seller can manually open or close PO
+- seller can save one active schedule window in WIB
+- when PO is closed, `/checkout` redirects to `/po-notice`
+- customers can join a waitlist with name, email, and WhatsApp
+- Resend can notify the waitlist when a schedule is published and when PO opens
+
+The PO sync cron runs every 5 minutes through:
+
+```text
+/api/internal/po/sync
+```
 
 ## Delivery Flow
 

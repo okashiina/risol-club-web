@@ -1,7 +1,8 @@
 import "server-only";
 
 import { Resend } from "resend";
-import { Order } from "@/lib/types";
+import { formatPoDateTime } from "@/lib/po";
+import { Order, PoSettings, PoWaitlistSubscriber } from "@/lib/types";
 
 export type SellerDigestEmailSection = {
   title: string;
@@ -43,6 +44,28 @@ function getOrderAlertSender() {
   }
 
   return "Risol Club <onboarding@resend.dev>";
+}
+
+function getPublicBaseUrl() {
+  const direct = readEnv("NEXT_PUBLIC_BASE_URL");
+
+  if (direct) {
+    return direct.replace(/\/$/, "");
+  }
+
+  const production = readEnv("VERCEL_PROJECT_PRODUCTION_URL");
+
+  if (production) {
+    return `https://${production.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+  }
+
+  const deployment = readEnv("VERCEL_URL");
+
+  if (deployment) {
+    return `https://${deployment.replace(/^https?:\/\//, "").replace(/\/$/, "")}`;
+  }
+
+  return "http://localhost:3000";
 }
 
 function getResendClient() {
@@ -258,6 +281,169 @@ function buildDigestHtml(payload: SellerDigestEmailPayload) {
       </div>
     </div>
   `;
+}
+
+type PoSubscriberEmailPayload = {
+  eyebrow: string;
+  subject: string;
+  title: string;
+  intro: string;
+  bodyLines: string[];
+  ctaLabel: string;
+  ctaHref: string;
+  preview: string;
+  idempotencyKey: string;
+};
+
+function buildSubscriberEmailPlainText(payload: PoSubscriberEmailPayload) {
+  return [
+    payload.title,
+    payload.intro,
+    "",
+    ...payload.bodyLines,
+    "",
+    payload.ctaLabel,
+    payload.ctaHref,
+  ].join("\n");
+}
+
+function buildSubscriberEmailHtml(payload: PoSubscriberEmailPayload) {
+  return `
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;">
+      ${escapeHtml(payload.preview)}
+    </div>
+    <div style="background:#fff8f6;padding:24px;font-family:Arial,sans-serif;color:#3f2622;">
+      <div style="max-width:640px;margin:0 auto;background:white;border-radius:24px;padding:28px;border:1px solid #f3d6ca;">
+        <p style="margin:0 0 12px;font-size:12px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:#b91e1e;">
+          ${escapeHtml(payload.eyebrow)}
+        </p>
+        <h1 style="margin:0 0 8px;font-size:34px;line-height:1.1;color:#4a1f1a;">
+          ${escapeHtml(payload.title)}
+        </h1>
+        <p style="margin:0 0 20px;font-size:16px;line-height:1.7;">
+          ${escapeHtml(payload.intro)}
+        </p>
+        <div style="margin:0 0 20px;">
+          ${payload.bodyLines
+            .map(
+              (line) =>
+                `<p style="margin:0 0 12px;font-size:15px;line-height:1.75;">${escapeHtml(line)}</p>`,
+            )
+            .join("")}
+        </div>
+        <div style="margin-top:24px;">
+          <a href="${escapeHtml(payload.ctaHref)}" style="display:inline-block;border-radius:999px;background:#4a1f1a;color:white;padding:12px 18px;font-weight:700;text-decoration:none;">
+            ${escapeHtml(payload.ctaLabel)}
+          </a>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+export async function sendPoScheduledSubscriberEmail(
+  subscriber: PoWaitlistSubscriber,
+  settings: PoSettings,
+  cycleId: string,
+) {
+  const resend = getResendClient();
+
+  if (!resend) {
+    return { sent: false, reason: "missing_email_config" as const };
+  }
+
+  const baseUrl = getPublicBaseUrl();
+  const scheduleLabel = formatPoDateTime(settings.scheduledStartAt, "id");
+  const payload: PoSubscriberEmailPayload = {
+    eyebrow: "PO berikutnya",
+    subject: `Catet ya, PO Risol Club buka ${scheduleLabel}`,
+    title: `Halo ${subscriber.name}! Kita udah siapin jadwal PO berikutnya.`,
+    intro: "Makasih ya udah sabar nungguin batch berikutnya dari Risol Club.",
+    bodyLines: [
+      `PO berikutnya dijadwalkan buka pada ${scheduleLabel}.`,
+      settings.scheduledEndAt
+        ? `Window ini akan berjalan sampai ${formatPoDateTime(settings.scheduledEndAt, "id")}.`
+        : "Begitu window-nya mulai jalan, kamu bisa langsung checkout seperti biasa.",
+      "Sambil nunggu, kamu masih bisa lihat-lihat menu dulu buat nandain mana yang pengin kamu ambil nanti.",
+    ],
+    ctaLabel: "Lihat menu dulu yuk",
+    ctaHref: `${baseUrl}/po-notice`,
+    preview: `PO berikutnya dijadwalkan buka ${scheduleLabel}.`,
+    idempotencyKey: `po-scheduled-${cycleId}-${subscriber.id}`,
+  };
+
+  const { error } = await resend.emails.send(
+    {
+      from: getOrderAlertSender(),
+      to: subscriber.email,
+      subject: payload.subject,
+      html: buildSubscriberEmailHtml(payload),
+      text: buildSubscriberEmailPlainText(payload),
+    },
+    {
+      headers: {
+        "Idempotency-Key": payload.idempotencyKey,
+      },
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message || "Failed to send scheduled PO email.");
+  }
+
+  return { sent: true as const };
+}
+
+export async function sendPoOpenedSubscriberEmail(
+  subscriber: PoWaitlistSubscriber,
+  settings: PoSettings,
+  cycleId: string,
+) {
+  const resend = getResendClient();
+
+  if (!resend) {
+    return { sent: false, reason: "missing_email_config" as const };
+  }
+
+  const baseUrl = getPublicBaseUrl();
+  const payload: PoSubscriberEmailPayload = {
+    eyebrow: "PO dibuka lagi",
+    subject: "Yeay, PO Risol Club udah dibuka lagi!",
+    title: `Halo ${subscriber.name}! Makasih udah nunggu Risol Club buka PO ya.`,
+    intro: "Kabar baiknya, sekarang PO lagi open dan kamu udah bisa langsung masuk buat checkout.",
+    bodyLines: [
+      "Kalau dari tadi udah ngincer menu tertentu, sekarang waktunya masuk duluan sebelum window batch ini selesai.",
+      settings.scheduledEndAt
+        ? `Batch ini berjalan sampai ${formatPoDateTime(settings.scheduledEndAt, "id")}.`
+        : "Kalau sudah siap, tinggal klik tombol di bawah dan lanjut checkout seperti biasa.",
+      "See you di batch kali ini yaa.",
+    ],
+    ctaLabel: "Order sekarang",
+    ctaHref: `${baseUrl}/checkout`,
+    preview: "PO Risol Club udah dibuka lagi.",
+    idempotencyKey: `po-opened-${cycleId}-${subscriber.id}`,
+  };
+
+  const { error } = await resend.emails.send(
+    {
+      from: getOrderAlertSender(),
+      to: subscriber.email,
+      subject: payload.subject,
+      html: buildSubscriberEmailHtml(payload),
+      text: buildSubscriberEmailPlainText(payload),
+    },
+    {
+      headers: {
+        "Idempotency-Key": payload.idempotencyKey,
+      },
+    },
+  );
+
+  if (error) {
+    throw new Error(error.message || "Failed to send opened PO email.");
+  }
+
+  return { sent: true as const };
 }
 
 export async function sendNewOrderSellerEmail(order: Order) {

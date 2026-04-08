@@ -9,6 +9,7 @@ type SellerShellProps = {
 const navItems = [
   { href: "/seller", label: "Overview" },
   { href: "/seller/orders", label: "Orders" },
+  { href: "/seller/po", label: "PO" },
   { href: "/seller/menu", label: "Menu" },
   { href: "/seller/costing", label: "Costing" },
   { href: "/seller/inventory", label: "Inventory" },
@@ -47,7 +48,7 @@ export function SellerShell({
         {children}
       </main>
       <nav className="safe-pb sticky bottom-0 z-20 border-t border-[color:var(--paper-300)] bg-white/95 px-2 py-2 backdrop-blur md:hidden">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {navItems.map((item) => (
             <Link
               key={item.href}

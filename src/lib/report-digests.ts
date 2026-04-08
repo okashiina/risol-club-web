@@ -211,34 +211,34 @@ function createInactivityJobs(store: StoreData) {
 
     jobs.push({
       title: `Reminder: PO belum dibuka ${inactivity.poClosedDays} hari`,
-      body: `Semua menu aktif sudah nonaktif sekitar ${inactivity.poClosedDays} hari. Kalau mau buka PO lagi, nyalakan menu yang siap dijual.`,
+      body: `PO belum dibuka sekitar ${inactivity.poClosedDays} hari. Kalau mau buka batch lagi, cek jadwal PO berikutnya ya.`,
       href: REPORTS_HREF,
       kind: "digest_inactivity_po_closed",
       dedupeKey: `digest:inactivity:po-closed:${poClosedKey}`,
       email: {
-        subject: `Reminder seller - semua menu nonaktif ${inactivity.poClosedDays} hari`,
+        subject: `Reminder seller - PO tutup ${inactivity.poClosedDays} hari`,
         title: `PO terlihat tutup selama ${inactivity.poClosedDays} hari`,
-        intro: `Semua menu yang bisa dijual sedang nonaktif. Kalau ini tidak disengaja, sekarang saat yang bagus untuk re-open PO.`,
-        preview: `Semua menu aktif sudah nonaktif selama ${inactivity.poClosedDays} hari.`,
+        intro: `PO masih tutup. Kalau ini tidak disengaja, sekarang saat yang bagus untuk atur jadwal dan re-open batch berikutnya.`,
+        preview: `PO masih tutup selama ${inactivity.poClosedDays} hari.`,
         sections: [
           {
             title: "Status",
             lines: [
               `Hari PO tertutup: ${inactivity.poClosedDays}`,
-              `Terakhir semua menu jadi nonaktif: ${inactivity.poClosedSince ?? "belum ada data"}`,
+              `PO mulai tertutup: ${inactivity.poClosedSince ?? "belum ada data"}`,
             ],
           },
           {
             title: "Aksi yang disarankan",
             lines: [
-              "Aktifkan kembali menu yang siap dijual.",
+              "Atur jadwal PO berikutnya dari dashboard seller.",
               "Cek stok dan costing sebelum buka batch berikutnya.",
               "Pantau overview dan reports untuk lihat momentum penjualan terakhir.",
             ],
           },
         ],
-        ctaHref: "/seller/menu",
-        ctaLabel: "Buka seller menu",
+        ctaHref: "/seller/po",
+        ctaLabel: "Buka pengaturan PO",
         dedupeKey: `inactivity-po-closed-${poClosedKey}`,
       },
     });

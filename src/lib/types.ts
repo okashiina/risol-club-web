@@ -1,4 +1,11 @@
 export type Locale = "id" | "en";
+export type PoManualOverride = "open" | "closed";
+export type PoStateReason =
+  | "manual_open"
+  | "manual_closed"
+  | "scheduled_open"
+  | "scheduled_closed"
+  | "no_schedule";
 
 export type FulfillmentMethod = "pickup" | "delivery";
 export type ProductVariantType = "frozen" | "fried";
@@ -182,8 +189,37 @@ export type AppSettings = {
   defaultDeliveryFee: number;
 };
 
+export type PoSettings = {
+  manualOverride: PoManualOverride | null;
+  scheduledStartAt?: string;
+  scheduledEndAt?: string;
+  timezone: "Asia/Jakarta";
+  cycleId?: string;
+  updatedAt: string;
+};
+
+export type PoWaitlistSubscriber = {
+  id: string;
+  name: string;
+  email: string;
+  whatsapp: string;
+  createdAt: string;
+  updatedAt: string;
+  lastScheduledNotifiedCycleId?: string;
+  lastOpenedNotifiedCycleId?: string;
+};
+
+export type ResolvedPoState = {
+  isOpen: boolean;
+  reason: PoStateReason;
+  nextOpenAt?: string;
+  nextCloseAt?: string;
+};
+
 export type StoreData = {
   settings: AppSettings;
+  poSettings: PoSettings;
+  poWaitlistSubscribers: PoWaitlistSubscriber[];
   suppliers: Supplier[];
   ingredients: Ingredient[];
   ingredientSupplierPrices: IngredientSupplierPrice[];

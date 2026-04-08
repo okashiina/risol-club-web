@@ -9,6 +9,8 @@ import {
   inventoryMovementsProjection,
   notificationsProjection,
   ordersProjection,
+  poSettingsProjection,
+  poWaitlistSubscribersProjection,
   productsProjection,
   productStocksProjection,
   recipesProjection,
@@ -20,8 +22,9 @@ import {
   readStore,
   syncDatabaseProjections,
 } from "@/lib/data-store";
+import { createDefaultPoSettings, resolvePoState } from "@/lib/po";
 import { ReportQueryOptions, getDashboardMetrics, getReportDailySeries, getReportHighlights, getSalesBreakdown, getStatusBreakdown } from "@/lib/reports";
-import { AppSettings, Ingredient, IngredientSupplierPrice, InventoryItemType, InventoryMovementType, Notification, Order, OrderItem, OrderStatus, PaymentProof, Product, ProductStock, Recipe, StoreData, Supplier } from "@/lib/types";
+import { AppSettings, Ingredient, IngredientSupplierPrice, InventoryItemType, InventoryMovementType, Notification, Order, OrderItem, OrderStatus, PaymentProof, PoSettings, PoWaitlistSubscriber, Product, ProductStock, Recipe, StoreData, Supplier } from "@/lib/types";
 
 function toIso(value: Date | string) {
   return typeof value === "string" ? value : value.toISOString();
@@ -84,6 +87,38 @@ function mapNotification(row: typeof notificationsProjection.$inferSelect): Noti
     kind: row.kind ?? undefined,
     dedupeKey: row.dedupeKey ?? undefined,
     createdAt: toIso(row.createdAt),
+  };
+}
+
+function mapPoSettings(
+  row: typeof poSettingsProjection.$inferSelect | undefined,
+): PoSettings {
+  if (!row) {
+    return createDefaultPoSettings(new Date().toISOString());
+  }
+
+  return {
+    manualOverride: row.manualOverride ?? null,
+    scheduledStartAt: row.scheduledStartAt ? toIso(row.scheduledStartAt) : undefined,
+    scheduledEndAt: row.scheduledEndAt ? toIso(row.scheduledEndAt) : undefined,
+    timezone: "Asia/Jakarta",
+    cycleId: row.cycleId ?? undefined,
+    updatedAt: toIso(row.updatedAt),
+  };
+}
+
+function mapPoWaitlistSubscriber(
+  row: typeof poWaitlistSubscribersProjection.$inferSelect,
+): PoWaitlistSubscriber {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    whatsapp: row.whatsapp,
+    lastScheduledNotifiedCycleId: row.lastScheduledNotifiedCycleId ?? undefined,
+    lastOpenedNotifiedCycleId: row.lastOpenedNotifiedCycleId ?? undefined,
+    createdAt: toIso(row.createdAt),
+    updatedAt: toIso(row.updatedAt),
   };
 }
 
@@ -196,7 +231,9 @@ function isRecoverableProjectionError(error: unknown) {
     code === "42703" ||
     message.includes("column \"kind\" does not exist") ||
     message.includes("column \"dedupe_key\" does not exist") ||
-    message.includes("notifications_projection")
+    message.includes("notifications_projection") ||
+    message.includes("po_settings_projection") ||
+    message.includes("po_waitlist_subscribers_projection")
   );
 }
 
@@ -322,11 +359,12 @@ export const readPublicCatalogData = cache(async () =>
     async () =>
       withProjectionRecovery(async () => {
       const db = getDb()!;
-      const [settingsRow, productRows] = await Promise.all([
+      const [settingsRow, poSettingsRows, productRows] = await Promise.all([
         db
           .select({ payload: settingsProjection.payload })
           .from(settingsProjection)
           .limit(1),
+        db.select().from(poSettingsProjection).limit(1),
         db
           .select()
           .from(productsProjection)
@@ -334,8 +372,13 @@ export const readPublicCatalogData = cache(async () =>
           .orderBy(desc(productsProjection.featured), asc(productsProjection.createdAt)),
       ]);
 
+      const poSettings = mapPoSettings(poSettingsRows[0]);
+      const poState = resolvePoState(poSettings);
+
       return {
         settings: (settingsRow[0]?.payload as AppSettings | undefined) ?? (await readSettingsData()),
+        poSettings,
+        poState,
         products: productRows.map(mapProduct),
       };
     }, (result) => result.products.length === 0),
@@ -343,6 +386,8 @@ export const readPublicCatalogData = cache(async () =>
       const store = await readStore();
       return {
         settings: store.settings,
+        poSettings: store.poSettings,
+        poState: resolvePoState(store.poSettings),
         products: store.products.filter((product) => product.isActive),
       };
     },
@@ -386,7 +431,7 @@ export const readSellerOverviewData = cache(async () =>
     async () =>
       withProjectionRecovery(async () => {
         const db = getDb()!;
-        const [productRows, orderRows, notificationRows, unreadRows, ingredientRows, stockRows] = await Promise.all([
+        const [productRows, orderRows, notificationRows, unreadRows, ingredientRows, stockRows, poSettingsRows, waitlistRows] = await Promise.all([
           db.select().from(productsProjection),
           db.select().from(ordersProjection).orderBy(desc(ordersProjection.createdAt)),
           db.select().from(notificationsProjection).orderBy(desc(notificationsProjection.createdAt)).limit(5),
@@ -396,10 +441,20 @@ export const readSellerOverviewData = cache(async () =>
             .where(eq(notificationsProjection.read, false)),
           db.select().from(ingredientsProjection),
           db.select().from(productStocksProjection),
+          db.select().from(poSettingsProjection).limit(1),
+          db
+            .select()
+            .from(poWaitlistSubscribersProjection)
+            .orderBy(desc(poWaitlistSubscribersProjection.createdAt))
+            .limit(5),
         ]);
+
+      const poSettings = mapPoSettings(poSettingsRows[0]);
 
       const storeSubset: StoreData = {
         settings: await readSettingsData(),
+        poSettings,
+        poWaitlistSubscribers: waitlistRows.map(mapPoWaitlistSubscriber),
         suppliers: [],
         ingredients: ingredientRows.map(mapIngredient),
         ingredientSupplierPrices: [],
@@ -416,6 +471,9 @@ export const readSellerOverviewData = cache(async () =>
             ...getDashboardMetrics(storeSubset),
             unreadNotifications: Number(unreadRows[0]?.count ?? 0),
           },
+          poState: resolvePoState(poSettings),
+          poSettings,
+          recentSubscribers: waitlistRows.map(mapPoWaitlistSubscriber),
           notifications: notificationRows.map(mapNotification),
           recentOrders: orderRows.slice(0, 5).map(mapOrder),
         };
@@ -424,6 +482,9 @@ export const readSellerOverviewData = cache(async () =>
       const store = await readStore();
       return {
         metrics: getDashboardMetrics(store),
+        poState: resolvePoState(store.poSettings),
+        poSettings: store.poSettings,
+        recentSubscribers: store.poWaitlistSubscribers.slice(0, 5),
         notifications: store.notifications.slice(0, 5),
         recentOrders: store.orders.slice(0, 5),
       };
@@ -504,6 +565,8 @@ export const readSellerReportsData = cache(async (options: ReportQueryOptions = 
 
         const storeSubset: StoreData = {
           settings: await readSettingsData(),
+          poSettings: createDefaultPoSettings(new Date().toISOString()),
+          poWaitlistSubscribers: [],
           suppliers: [],
           ingredients: ingredientRows.map(mapIngredient),
           ingredientSupplierPrices: [],
@@ -570,6 +633,8 @@ export const readSellerOperationsStore = cache(async () =>
 
         return {
           settings: await readSettingsData(),
+          poSettings: createDefaultPoSettings(new Date().toISOString()),
+          poWaitlistSubscribers: [],
           suppliers: supplierRows.map(mapSupplier),
           ingredients: ingredientRows.map(mapIngredient),
           ingredientSupplierPrices: priceRows.map(mapSupplierPrice),
@@ -588,6 +653,38 @@ export const readSellerOperationsStore = cache(async () =>
         orders: [],
         notifications: [],
         inventoryMovements: [],
+      };
+    },
+  ));
+
+export const readSellerPoData = cache(async () =>
+  withDbFallback(
+    async () =>
+      withProjectionRecovery(async () => {
+        const db = getDb()!;
+        const [poSettingsRows, subscriberRows] = await Promise.all([
+          db.select().from(poSettingsProjection).limit(1),
+          db
+            .select()
+            .from(poWaitlistSubscribersProjection)
+            .orderBy(desc(poWaitlistSubscribersProjection.createdAt)),
+        ]);
+
+        const poSettings = mapPoSettings(poSettingsRows[0]);
+        const subscribers = subscriberRows.map(mapPoWaitlistSubscriber);
+
+        return {
+          poSettings,
+          poState: resolvePoState(poSettings),
+          subscribers,
+        };
+      }, () => false),
+    async () => {
+      const store = await readStore();
+      return {
+        poSettings: store.poSettings,
+        poState: resolvePoState(store.poSettings),
+        subscribers: store.poWaitlistSubscribers,
       };
     },
   ));

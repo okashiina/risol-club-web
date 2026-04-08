@@ -1,6 +1,6 @@
 import "server-only";
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { eq, sql as drizzleSql } from "drizzle-orm";
 import { cache } from "react";
@@ -12,6 +12,8 @@ import {
   inventoryMovementsProjection,
   notificationsProjection,
   ordersProjection,
+  poSettingsProjection,
+  poWaitlistSubscribersProjection,
   productStocksProjection,
   productsProjection,
   recipesProjection,
@@ -27,6 +29,10 @@ import {
 } from "@/lib/catalog";
 import { seedData } from "@/lib/seed-data";
 import {
+  normalizePoSettings,
+  normalizePoWaitlistSubscribers,
+} from "@/lib/po";
+import {
   Ingredient,
   Order,
   OrderStatus,
@@ -39,6 +45,7 @@ import {
 
 const DATA_DIR = path.join(process.cwd(), "data");
 const STORE_FILE = path.join(DATA_DIR, "store.json");
+const STORE_FILE_TMP = path.join(DATA_DIR, "store.json.tmp");
 const STORE_ROW_ID = "primary";
 const STORE_LOCK_KEY = 9_513_469;
 const LEGACY_BANK_ACCOUNT_NUMBER = "60505842655";
@@ -66,6 +73,8 @@ function deepClone<T>(value: T): T {
 }
 
 function normalizeStoreData(store: StoreData) {
+  const normalizedNow = nowIso();
+
   if (store.settings.bankAccountNumber === LEGACY_BANK_ACCOUNT_NUMBER) {
     store.settings.bankAccountNumber = DEFAULT_BANK_ACCOUNT_NUMBER;
   }
@@ -91,6 +100,14 @@ function normalizeStoreData(store: StoreData) {
   if (!store.settings.storyEn?.trim()) {
     store.settings.storyEn = DEFAULT_STORY_EN;
   }
+
+  store.poSettings = normalizePoSettings(
+    store.poSettings,
+    store.poSettings?.updatedAt ?? normalizedNow,
+  );
+  store.poWaitlistSubscribers = normalizePoWaitlistSubscribers(
+    store.poWaitlistSubscribers,
+  );
 
   const productById = new Map<string, Product>();
 
@@ -259,6 +276,39 @@ async function syncProjectedTables(
     payload: store.settings,
     updatedAt: new Date(),
   });
+
+  await tx.delete(poSettingsProjection);
+  await tx.insert(poSettingsProjection).values({
+    id: STORE_ROW_ID,
+    manualOverride: store.poSettings.manualOverride,
+    scheduledStartAt: store.poSettings.scheduledStartAt
+      ? asDate(store.poSettings.scheduledStartAt)
+      : null,
+    scheduledEndAt: store.poSettings.scheduledEndAt
+      ? asDate(store.poSettings.scheduledEndAt)
+      : null,
+    timezone: store.poSettings.timezone,
+    cycleId: store.poSettings.cycleId ?? null,
+    updatedAt: asDate(store.poSettings.updatedAt),
+  });
+
+  await tx.delete(poWaitlistSubscribersProjection);
+  if (store.poWaitlistSubscribers.length) {
+    await tx.insert(poWaitlistSubscribersProjection).values(
+      store.poWaitlistSubscribers.map((subscriber) => ({
+        id: subscriber.id,
+        name: subscriber.name,
+        email: subscriber.email,
+        whatsapp: subscriber.whatsapp,
+        lastScheduledNotifiedCycleId:
+          subscriber.lastScheduledNotifiedCycleId ?? null,
+        lastOpenedNotifiedCycleId:
+          subscriber.lastOpenedNotifiedCycleId ?? null,
+        createdAt: asDate(subscriber.createdAt),
+        updatedAt: asDate(subscriber.updatedAt),
+      })),
+    );
+  }
 
   await tx.delete(productsProjection);
   if (store.products.length) {
@@ -496,6 +546,29 @@ async function ensureDatabaseStore() {
         )
       `);
       await db.execute(drizzleSql`
+        create table if not exists po_settings_projection (
+          id text primary key,
+          manual_override text,
+          scheduled_start_at timestamptz,
+          scheduled_end_at timestamptz,
+          timezone text not null,
+          cycle_id text,
+          updated_at timestamptz not null default now()
+        )
+      `);
+      await db.execute(drizzleSql`
+        create table if not exists po_waitlist_subscribers_projection (
+          id text primary key,
+          name text not null,
+          email text not null,
+          whatsapp text not null,
+          last_scheduled_notified_cycle_id text,
+          last_opened_notified_cycle_id text,
+          created_at timestamptz not null,
+          updated_at timestamptz not null
+        )
+      `);
+      await db.execute(drizzleSql`
         create table if not exists products_projection (
           id text primary key,
           slug text not null unique,
@@ -604,6 +677,14 @@ async function ensureDatabaseStore() {
           note text not null,
           created_at timestamptz not null
         )
+      `);
+      await db.execute(drizzleSql`
+        create index if not exists po_waitlist_subscribers_projection_email_idx
+        on po_waitlist_subscribers_projection (email)
+      `);
+      await db.execute(drizzleSql`
+        create index if not exists po_waitlist_subscribers_projection_created_at_idx
+        on po_waitlist_subscribers_projection (created_at desc)
       `);
       await db.execute(drizzleSql`
         create index if not exists products_projection_active_featured_idx
@@ -742,7 +823,8 @@ async function writeLocalStore(
   const pendingWrite = writeQueue.then(async () => {
     const current = await readLocalStore();
     const next = normalizeStoreData(await updater(deepClone(current)));
-    await writeFile(STORE_FILE, JSON.stringify(next, null, 2), "utf8");
+    await writeFile(STORE_FILE_TMP, JSON.stringify(next, null, 2), "utf8");
+    await rename(STORE_FILE_TMP, STORE_FILE);
     return next;
   });
 

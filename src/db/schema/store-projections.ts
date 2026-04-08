@@ -6,6 +6,7 @@ import type {
   OrderItem,
   OrderStatus,
   PaymentProof,
+  PoManualOverride,
   ProductImage,
   ProductVariant,
   RecipeItem,
@@ -15,6 +16,27 @@ export const settingsProjection = pgTable("settings_projection", {
   id: text("id").primaryKey(),
   payload: jsonb("payload").$type<AppSettings>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const poSettingsProjection = pgTable("po_settings_projection", {
+  id: text("id").primaryKey(),
+  manualOverride: text("manual_override").$type<PoManualOverride | null>(),
+  scheduledStartAt: timestamp("scheduled_start_at", { withTimezone: true }),
+  scheduledEndAt: timestamp("scheduled_end_at", { withTimezone: true }),
+  timezone: text("timezone").notNull(),
+  cycleId: text("cycle_id"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const poWaitlistSubscribersProjection = pgTable("po_waitlist_subscribers_projection", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  email: text("email").notNull(),
+  whatsapp: text("whatsapp").notNull(),
+  lastScheduledNotifiedCycleId: text("last_scheduled_notified_cycle_id"),
+  lastOpenedNotifiedCycleId: text("last_opened_notified_cycle_id"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull(),
 });
 
 export const productsProjection = pgTable("products_projection", {

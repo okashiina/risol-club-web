@@ -23,6 +23,12 @@ export const seedData: StoreData = {
     sellerWhatsappDisplay: "(0881081767677)",
     defaultDeliveryFee: 0,
   },
+  poSettings: {
+    manualOverride: "open",
+    timezone: "Asia/Jakarta",
+    updatedAt: now,
+  },
+  poWaitlistSubscribers: [],
   suppliers: [
     {
       id: "sup-1",

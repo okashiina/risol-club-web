@@ -23,6 +23,8 @@ import {
   writeStore,
 } from "@/lib/data-store";
 import { getPaymentProofHref, isBlobPaymentProof } from "@/lib/payment-proof";
+import { resolvePoState, wibInputToIso } from "@/lib/po";
+import { sendPoWaitlistNotifications } from "@/lib/po-workflows";
 import { Order, OrderStatus, Product, ProductVariantType, StoreData } from "@/lib/types";
 
 function textValue(formData: FormData, key: string) {
@@ -49,11 +51,19 @@ function revalidateSellerDashboard() {
 function revalidatePublicCatalog(slug?: string) {
   revalidatePath("/");
   revalidatePath("/checkout");
+  revalidatePath("/po-notice");
   revalidatePath("/menu/[slug]", "page");
 
   if (slug) {
     revalidatePath(`/menu/${slug}`);
   }
+}
+
+function revalidatePoViews() {
+  revalidateSellerDashboard();
+  revalidatePath("/seller/po");
+  revalidatePublicCatalog();
+  revalidatePath("/track");
 }
 
 function revalidateSellerSalesViews() {
@@ -1386,4 +1396,151 @@ export async function recordProductionAction(formData: FormData) {
   });
 
   revalidateSellerInventoryViews();
+}
+
+export async function updatePoModeAction(formData: FormData) {
+  await requireSellerActionSession();
+
+  const mode = textValue(formData, "manualOverride");
+  let openedCycleId = "";
+
+  await writeStore((store) => {
+    const previousState = resolvePoState(store.poSettings);
+    const nextManualOverride =
+      mode === "open" || mode === "closed" ? mode : null;
+    const updatedAt = nowIso();
+
+    store.poSettings.manualOverride = nextManualOverride;
+    store.poSettings.updatedAt = updatedAt;
+
+    if (nextManualOverride === "open" && !previousState.isOpen) {
+      openedCycleId = makeId("po-cycle");
+      store.poSettings.cycleId = openedCycleId;
+      store.notifications.unshift({
+        id: makeId("notif"),
+        title: "PO dibuka sekarang",
+        body: "Customer sudah bisa masuk checkout lagi. Email waitlist akan dikirim untuk cycle baru ini.",
+        href: "/seller/po",
+        read: false,
+        kind: "po",
+        createdAt: updatedAt,
+      });
+    }
+
+    if (nextManualOverride === "closed" && previousState.isOpen) {
+      store.notifications.unshift({
+        id: makeId("notif"),
+        title: "PO ditutup manual",
+        body: "Customer sekarang diarahkan ke halaman notice sampai PO dibuka lagi.",
+        href: "/seller/po",
+        read: false,
+        kind: "po",
+        createdAt: updatedAt,
+      });
+    }
+
+    if (nextManualOverride === null) {
+      store.notifications.unshift({
+        id: makeId("notif"),
+        title: "PO kembali mengikuti jadwal",
+        body: "Manual override dimatikan. Status PO sekarang mengikuti window yang tersimpan.",
+        href: "/seller/po",
+        read: false,
+        kind: "po",
+        createdAt: updatedAt,
+      });
+    }
+
+    return store;
+  });
+
+  if (openedCycleId) {
+    await sendPoWaitlistNotifications("opened", openedCycleId);
+  }
+
+  revalidatePoViews();
+}
+
+export async function savePoScheduleAction(formData: FormData) {
+  await requireSellerActionSession();
+
+  const scheduledStartAt = wibInputToIso(textValue(formData, "scheduledStartAt"));
+  const scheduledEndAt = wibInputToIso(textValue(formData, "scheduledEndAt"));
+
+  if (!scheduledStartAt || !scheduledEndAt) {
+    return;
+  }
+
+  if (new Date(scheduledEndAt).getTime() <= new Date(scheduledStartAt).getTime()) {
+    return;
+  }
+
+  let emailKind: "scheduled" | "opened" | null = null;
+  let cycleId = "";
+
+  await writeStore((store) => {
+    const updatedAt = nowIso();
+    const nextCycleId = makeId("po-cycle");
+    const nextSettings = {
+      ...store.poSettings,
+      manualOverride: null,
+      scheduledStartAt,
+      scheduledEndAt,
+      cycleId: nextCycleId,
+      updatedAt,
+    };
+    const nextState = resolvePoState(nextSettings);
+
+    store.poSettings = nextSettings;
+    cycleId = nextCycleId;
+    emailKind = nextState.reason === "scheduled_open" ? "opened" : "scheduled";
+
+    store.notifications.unshift({
+      id: makeId("notif"),
+      title:
+        emailKind === "opened"
+          ? "PO langsung dibuka dari jadwal"
+          : "Jadwal PO berhasil disimpan",
+      body:
+        emailKind === "opened"
+          ? "Window yang kamu simpan sedang aktif sekarang, jadi customer sudah bisa checkout."
+          : "Customer waitlist akan dikabari kapan window berikutnya dimulai.",
+      href: "/seller/po",
+      read: false,
+      kind: "po",
+      createdAt: updatedAt,
+    });
+
+    return store;
+  });
+
+  if (cycleId && emailKind) {
+    await sendPoWaitlistNotifications(emailKind, cycleId);
+  }
+
+  revalidatePoViews();
+}
+
+export async function clearPoScheduleAction() {
+  await requireSellerActionSession();
+
+  await writeStore((store) => {
+    store.poSettings.scheduledStartAt = undefined;
+    store.poSettings.scheduledEndAt = undefined;
+    store.poSettings.cycleId = undefined;
+    store.poSettings.updatedAt = nowIso();
+    store.notifications.unshift({
+      id: makeId("notif"),
+      title: "Jadwal PO dibersihkan",
+      body: "PO sekarang tidak punya window terjadwal sampai kamu menyimpan jadwal baru.",
+      href: "/seller/po",
+      read: false,
+      kind: "po",
+      createdAt: nowIso(),
+    });
+
+    return store;
+  });
+
+  revalidatePoViews();
 }

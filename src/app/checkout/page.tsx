@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { CheckoutForm } from "@/components/checkout-form";
 import { BrandLogo } from "@/components/brand-logo";
 import { LanguageToggle } from "@/components/language-toggle";
@@ -11,8 +12,12 @@ export default async function CheckoutPage({
 }) {
   const locale = await getLocale();
   const text = getDictionary(locale);
-  const { settings, products } = await readPublicCatalogData();
   const { product } = await searchParams;
+  const { settings, products, poState } = await readPublicCatalogData();
+
+  if (!poState.isOpen) {
+    redirect(product ? `/po-notice?product=${encodeURIComponent(product)}` : "/po-notice");
+  }
 
   return (
     <div className="page-shell safe-pt min-h-screen py-6">
